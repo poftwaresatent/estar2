@@ -37,9 +37,6 @@
 
 #define DIMX 100
 #define DIMY 100
-#define NX (DIMX + 2)
-#define NY (DIMY + 2)
-#define NTT (NX * NY)
 
 
 typedef struct cell_s {
@@ -47,7 +44,7 @@ typedef struct cell_s {
 } cell_t;
 
 
-static cell_t grid[NTT];
+static cell_t grid[DIMX * DIMY];
 
 
 static GtkWidget * w_phi;
@@ -57,22 +54,15 @@ static double phimin, phimax;
 static int play;
 
 
-static size_t cidx (size_t ii, size_t jj)
-{
-  return ii + jj * NX;
-}
+#define cidx(ii,jj) ((ii)+(jj)*DIMX)
 
 
 static void init ()
 {
   size_t ii, jj;
   
-  /* for (ii = 0; ii < NTT; ++ii) { */
-  /*   grid[ii].phi = NAN; */
-  /* } */
-  
-  for (ii = 1; ii <= DIMX; ++ii) {
-    for (jj = 1; jj <= DIMY; ++jj) {
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
       size_t const idx = cidx(ii, jj);
       grid[idx].phi = sqrt (pow (10.0 - ii, 2.0) + pow (10.0 - jj, 2.0));
     }
@@ -81,31 +71,14 @@ static void init ()
 }
 
 
-static void update_boundaries ()
-{
-  size_t ii, jj;
-  
-  for (ii = 1; ii <= DIMX; ++ii) {
-    grid[cidx(ii, 0)].phi = grid[cidx(ii, 2)].phi;
-    grid[cidx(ii, DIMY+1)].phi = grid[cidx(ii, DIMY-1)].phi;
-  }
-  for (jj = 1; jj <= DIMY; ++jj) {
-    grid[cidx(0, jj)].phi = grid[cidx(2, jj)].phi;
-    grid[cidx(DIMX+1, jj)].phi = grid[cidx(DIMX-1, jj)].phi;
-  }
-}
-
-
 static void update ()
 {
   int ii, jj;
   
-  ////  update_boundaries ();
-  
   phimin = NAN;
   phimax = NAN;
-  for (ii = 1; ii <= DIMX; ++ii) {
-    for (jj = 1; jj <= DIMY; ++jj) {
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
       size_t const idx = cidx(ii, jj);
       if (isnan(phimin) || (phimin > grid[idx].phi)) {
 	phimin = grid[idx].phi;
@@ -169,8 +142,8 @@ gint cb_phi_expose (GtkWidget * ww,
   cairo_rectangle (cr, w_phi_x0 - 2, w_phi_y0 + 2, DIMX * w_phi_sx + 4, DIMY * w_phi_sy - 4);
   cairo_stroke (cr);
   
-  for (ii = 1; ii <= DIMX; ++ii) {
-    for (jj = 1; jj <= DIMY; ++jj) {
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
       const double vv = grid[cidx(ii, jj)].phi;
       if (vv >= 0.0) {
   	cairo_set_source_rgb (cr, 0.0, 1.0 - vv / phimax, 0.0);
@@ -225,8 +198,8 @@ gint cb_phi_click (GtkWidget * ww,
   gdouble const cx = (bb->x - w_phi_x0) / w_phi_sx + 0.5;
   gdouble const cy = (bb->y - w_phi_y0) / w_phi_sy + 0.5;
   
-  for (ii = 1; ii <= DIMX; ++ii) {
-    for (jj = 1; jj <= DIMY; ++jj) {
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
       double const dd = sqrt (pow (cx - ii, 2.0) + pow (cy - jj, 2.0));
       size_t const idx = cidx(ii, jj);
       grid[idx].phi  = dd;
