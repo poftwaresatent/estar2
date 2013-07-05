@@ -30,18 +30,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "cell.h"
+#include "pqueue.h"
+
 #include <gtk/gtk.h>
 #include <err.h>
 #include <math.h>
 #include <string.h>
 
+
 #define DIMX 100
 #define DIMY 100
-
-
-typedef struct cell_s {
-  double phi;
-} cell_t;
 
 
 static cell_t grid[DIMX * DIMY];
