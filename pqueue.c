@@ -35,17 +35,23 @@
 
 #include <stdlib.h>
 #include <err.h>
-
-
-#define SWAP(tmp,aa,bb) {         \
-    (tmp) = (aa);		  \
-    (aa)->pqi = (bb)->pqi;	  \
-    (bb)->pqi = (tmp)->pqi;	  \
-    (aa) = (bb);		  \
-    (bb) = (tmp); }
+#include <stdio.h>
 
 
 #define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
+
+
+static void swap (cell_t ** aa, cell_t ** bb)
+{
+  size_t ti;
+  cell_t *tc;
+  ti = (*aa)->pqi;
+  (*aa)->pqi = (*bb)->pqi;
+  (*bb)->pqi = ti;
+  tc = (*aa);
+  (*aa) = (*bb);
+  (*bb) = tc;
+}
 
 
 static void bubble_up (cell_t ** heap, size_t index)
@@ -53,7 +59,7 @@ static void bubble_up (cell_t ** heap, size_t index)
   size_t parent;
   parent = index / 2;
   while ((parent > 0) && (heap[index]->key < heap[parent]->key)) {
-    SWAP (heap[0], heap[index], heap[parent]);
+    swap (&heap[index], &heap[parent]);
     index = parent;
     parent = index / 2;
   }
@@ -77,7 +83,7 @@ static void bubble_down (cell_t ** heap, size_t len, size_t index)
     if (index == target) {
       break;
     }
-    SWAP (heap[0], heap[target], heap[index]);
+    swap (&heap[target], &heap[index]);
     index = target;
   }
 }
@@ -87,7 +93,7 @@ void pqueue_init (pqueue_t * pq, size_t cap)
 {
   pq->heap = malloc (sizeof(cell_t*) * (cap+1));
   if (NULL == pq->heap) {
-    errx (EXIT_FAILURE, __FILE__": %s: realloc", __func__);
+    errx (EXIT_FAILURE, __FILE__": %s: malloc heap", __func__);
   }
   pq->len = 0;
   pq->cap = cap;
@@ -177,4 +183,15 @@ cell_t * pqueue_extract (pqueue_t * pq)
   bubble_down (pq->heap, pq->len, 1);
   
   return cell;
+}
+
+
+void pqueue_dump (pqueue_t * pq, char const * pfx)
+{
+  size_t ii;
+  for (ii = 1; ii <= pq->len; ++ii) {
+    printf ("%s[%zu %p]  pqi:  %zu  key: %g  phi: %g  rhs: %g\n",
+	    pfx, ii, pq->heap[ii],
+	    pq->heap[ii]->pqi, pq->heap[ii]->key, pq->heap[ii]->phi, pq->heap[ii]->rhs);
+  }
 }
