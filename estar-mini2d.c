@@ -40,8 +40,8 @@
 #include <stdlib.h>
 
 
-#define DIMX 20
-#define DIMY 20
+#define DIMX 100
+#define DIMY 100
 
 
 static cell_t grid[DIMX * DIMY];
@@ -232,34 +232,32 @@ static void update_cell (cell_t * cell)
     if (dbg) { dump_cell (  "  update_cell: removed  ", cell); }
   }
   
-  check_pqi ("  * ");
+  if (dbg) { check_pqi ("  * "); }
 }
 
 
-static void update ()
+static void step ()
 {
   cell_t * cell;
   cell_t ** nbor;
-  int status;
   
-  if (pq.len == 0) {
-    /* if (play) { */
-    /*   play = 0; */
-    /*   printf("PAUSE\n"); */
-    /* } */
+  cell = pqueue_extract (&pq);
+  if (NULL == cell) {
+    if (dbg) { printf ("step: empty queue\n"); }
     return;
   }
   
-  cell = pqueue_extract (&pq);
+  if (dbg) { dump_cell ("step:\n  before: ", cell); }
+  
   if (cell->phi > cell->rhs) {
-    if (dbg) { dump_cell ("update: lower\n  before: ", cell); }
+    if (dbg) { printf ("  lowering\n"); }
     cell->phi = cell->rhs;
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
     }
   }
   else {
-    if (dbg) { dump_cell ("update: raise\n  before", cell); }
+    if (dbg) { printf ("  raising\n"); }
     cell->phi = INFINITY;
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
@@ -271,6 +269,22 @@ static void update ()
     dump_cell ("  after ", cell);
     pqueue_dump (&pq, grid, DIMX, "  ");
   }
+}
+
+
+static void update ()
+{
+  int status;
+  
+  if (pq.len == 0) {
+    /* if (play) { */
+    /*   play = 0; */
+    /*   printf("PAUSE\n"); */
+    /* } */
+    return;
+  }
+  
+  step ();
   
   status = check ("*** ");
   if (0 != status) {
@@ -278,6 +292,16 @@ static void update ()
     printf ("ERROR %d (see above)\n", status);
   }
   
+  gtk_widget_queue_draw (w_phi);
+}
+
+
+void cb_flush (GtkWidget * ww, gpointer data)
+{
+  printf ("FLUSH\n");
+  while (pq.len != 0) {
+    step ();
+  }
   gtk_widget_queue_draw (w_phi);
 }
 
@@ -563,6 +587,11 @@ int main (int argc, char ** argv)
   hbox = gtk_hbox_new (TRUE, 3);
   gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, TRUE, 0);
   gtk_widget_show (hbox);
+  
+  btn = gtk_button_new_with_label ("flush");
+  g_signal_connect (btn, "clicked", G_CALLBACK (cb_flush), NULL);
+  gtk_box_pack_start (GTK_BOX (hbox), btn, TRUE, TRUE, 0);
+  gtk_widget_show (btn);
   
   btn = gtk_button_new_with_label ("play");
   g_signal_connect (btn, "clicked", G_CALLBACK (cb_play), NULL);
