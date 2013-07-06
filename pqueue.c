@@ -45,6 +45,9 @@
     (bb) = (tmp); }
 
 
+#define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
+
+
 static void bubble_up (cell_t ** heap, size_t index)
 {
   size_t parent;
@@ -124,6 +127,7 @@ void pqueue_insert (pqueue_t * pq, cell_t * cell)
   
   // append cell to heap and bubble up
   
+  cell->key = CALC_KEY(cell);
   heap[len] = cell;
   cell->pqi = len;
   bubble_up (heap, len);
@@ -141,6 +145,8 @@ void pqueue_remove (pqueue_t * pq, cell_t * cell)
 
 void pqueue_update (pqueue_t * pq, cell_t * cell)
 {
+  cell->key = CALC_KEY(cell);
+  
   // could probably make it more efficient by only bubbling down when
   // the bubble up did not change cell->pqi
   bubble_up (pq->heap, cell->pqi);

@@ -35,11 +35,12 @@
 
 #include <stddef.h>
 
-typedef struct {
+typedef struct cell_s {
   double phi;
   double rhs;
   double key;
   size_t pqi;
+  struct cell_s * succ[5];	/* null-terminated array of successors */
 } cell_t;
 
 #endif

@@ -37,6 +37,7 @@
 #include <err.h>
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 #define DIMX 100
@@ -44,51 +45,116 @@
 
 
 static cell_t grid[DIMX * DIMY];
-
+static pqueue_t pq;
 
 static GtkWidget * w_phi;
 static gint w_phi_width, w_phi_height;
 static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
-static double phimin, phimax;
 static int play;
 
 
 #define cidx(ii,jj) ((ii)+(jj)*DIMX)
 
 
+static void fini ()
+{
+  pqueue_fini (&pq);
+}
+
+
 static void init ()
 {
-  size_t ii, jj;
+  size_t ii, jj, idx;
+  cell_t ** succ;
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      size_t const idx = cidx(ii, jj);
-      grid[idx].phi = sqrt (pow (10.0 - ii, 2.0) + pow (10.0 - jj, 2.0));
+      idx = cidx(ii, jj);
+      grid[idx].phi = NAN;
+      grid[idx].rhs = NAN;
+      grid[idx].key = NAN;
+      grid[idx].pqi = 0;
+      succ = grid[idx].succ;
+      if (ii > 0) {
+	*(succ++) = &grid[idx - 1];
+      }
+      if (ii < DIMX - 1) {
+	*(succ++) = &grid[idx + 1];
+      }
+      if (jj > 0) {
+	*(succ++) = &grid[idx - DIMX];
+      }
+      if (jj < DIMY - 1) {
+	*(succ++) = &grid[idx + DIMX];
+      }
+      *succ = 0;
     }
   }
+  
+  idx = cidx(2, 2);		/* goal */
+  grid[idx].rhs = 0.0;
+  
+  pqueue_init (&pq, DIMX + DIMY);
+  pqueue_insert (&pq, &grid[idx]);
+  
   play = 0;
+}
+
+
+static void update_cell (cell_t * cell)
+{
+  cell_t ** succ;
+  
+  if (cell->rhs == 0) {		/* hacked goal detection */
+    return;
+  }
+  
+  cell->rhs = NAN;
+  for (succ = cell->succ; *succ != 0; ++succ) {
+    double rr = 1.0 + (*succ)->phi;
+    if (NAN == cell->rhs || rr < cell->rhs) {
+      cell->rhs = rr;
+    }
+  }
+  
+  if (cell->phi != cell->rhs) {
+    if (cell->pqi == 0) {
+      pqueue_insert (&pq, cell);
+    }
+    else {
+      pqueue_update (&pq, cell);
+    }
+  }
+  else if (cell->pqi != 0) {
+    pqueue_remove (&pq, cell);
+  }
 }
 
 
 static void update ()
 {
-  int ii, jj;
+  cell_t * cell;
+  cell_t ** succ;
   
-  phimin = NAN;
-  phimax = NAN;
-  for (ii = 0; ii < DIMX; ++ii) {
-    for (jj = 0; jj < DIMY; ++jj) {
-      size_t const idx = cidx(ii, jj);
-      if (isnan(phimin) || (phimin > grid[idx].phi)) {
-	phimin = grid[idx].phi;
-      }
-      if (isnan(phimax) || (phimax < grid[idx].phi)) {
-	phimax = grid[idx].phi;
-      }
+  if (pq.len == 0) {
+    return;
+  }
+  
+  cell = pqueue_extract (&pq);
+  if (cell->phi > cell->rhs) {
+    cell->phi = cell->rhs;
+    for (succ = cell->succ; *succ != 0; ++succ) {
+      update_cell (*succ);
     }
   }
-  g_print("phi range  %4g  %4g\n", phimin, phimax);
-
+  else {
+    cell->phi = NAN;
+    for (succ = cell->succ; *succ != 0; ++succ) {
+      update_cell (*succ);
+    }
+    update_cell (cell);
+  }
+  
   gtk_widget_queue_draw (w_phi);
 }
 
@@ -131,6 +197,19 @@ gint cb_phi_expose (GtkWidget * ww,
 {
   size_t ii, jj;
   cairo_t * cr = gdk_cairo_create (ee->window);
+  double phimax;
+  
+  phimax = 0.0;
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      size_t const idx = cidx(ii, jj);
+      if (phimax < grid[idx].phi) {
+	phimax = grid[idx].phi;
+      }
+    }
+  }
+  
+  cr = gdk_cairo_create (ee->window);
   
   cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
   cairo_rectangle (cr, 0, 0, w_phi_width, w_phi_height);
@@ -143,14 +222,33 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      const double vv = grid[cidx(ii, jj)].phi;
-      if (vv >= 0.0) {
-  	cairo_set_source_rgb (cr, 0.0, 1.0 - vv / phimax, 0.0);
+      cell_t * cell = &grid[cidx(ii, jj)];
+      if (cell->pqi == 0) {
+	// not on queue
+	if (isnan(cell->phi)) {
+	  // unvisited
+	  cairo_set_source_rgb (cr, 0.0, 0.0, 0.5);
+	}
+	else {
+	  if (cell->phi == cell->rhs) {
+	    // consistent
+	    cairo_set_source_rgb (cr, 0.0, 1.0 - cell->phi / phimax, 0.0);
+	  }
+	  else {
+	    // inconsistent
+	    cairo_set_source_rgb (cr, 0.0, 1.0 - cell->phi / phimax, 0.5);
+	  }
+	}
       }
       else {
-  	cairo_set_source_rgb (cr, 1.0 + vv / phimax, 0.0, 0.0);
+	// queued
+	cairo_set_source_rgb (cr, 1.0 - cell->key / phimax, 0.0, 0.0);
       }
-      cairo_rectangle (cr, w_phi_x0 + (ii-1) * w_phi_sx, w_phi_y0 + jj * w_phi_sy, w_phi_sx, - w_phi_sy);
+      cairo_rectangle (cr,
+		       w_phi_x0 + (ii-1) * w_phi_sx,
+		       w_phi_y0 + jj * w_phi_sy,
+		       w_phi_sx,
+		       - w_phi_sy);
       cairo_fill (cr);
     }
   }
@@ -223,6 +321,10 @@ gint idle (gpointer data)
 int main (int argc, char ** argv)
 {
   GtkWidget *window, *vbox, *hbox, *btn;
+  
+  if (0 != atexit(fini)) {
+    err (EXIT_FAILURE, "atexit");
+  }
   
   gtk_init (&argc, &argv);
   init ();
