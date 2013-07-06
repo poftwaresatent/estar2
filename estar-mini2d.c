@@ -174,6 +174,10 @@ static void update ()
   cell_t ** nbor;
   
   if (pq.len == 0) {
+    if (play) {
+      play = 0;
+      g_print("PAUSE\n");
+    }
     return;
   }
   
@@ -320,13 +324,21 @@ gint cb_phi_expose (GtkWidget * ww,
 	}
       }
       else {
-	// inconsistent (on queue): red
-	if (maxkey == topkey) {
-	  cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
+	// inconsistent
+	if (cell->pqi == 0) {
+	  // but not on queue: ERROR!
+	  cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
+	  play = 0;
 	}
 	else {
-	  double const vv = 1.0 - (cell->key - topkey) / (maxkey - topkey);
-	  cairo_set_source_rgb (cr, 0.2 + 0.8 * vv, 0.0, 0.0);
+	  // on queue: red
+	  if (maxkey == topkey) {
+	    cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
+	  }
+	  else {
+	    double const vv = 1.0 - (cell->key - topkey) / (maxkey - topkey);
+	    cairo_set_source_rgb (cr, 0.2 + 0.8 * vv, 0.0, 0.0);
+	  }
 	}
       }
       cairo_rectangle (cr,
@@ -413,7 +425,6 @@ gint cb_phi_click (GtkWidget * ww,
   int const iy = (int) rint (cy);
   cell_t * cell;
   cell_t ** nbor;
-  size_t ii;
   
   if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
     if (dbg) { printf ("click [%4d  %4d]\n", ix, iy); }
@@ -428,9 +439,6 @@ gint cb_phi_click (GtkWidget * ww,
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
     }
-    /* for (ii = 1; ii <= pq.len; ++ii) { */
-    /*   pqueue_update (&pq, pq.heap[ii]); */
-    /* } */
     if (dbg) { dump_queue (); }
   }
   
