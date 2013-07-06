@@ -147,11 +147,9 @@ static void calc_rhs (cell_t * cell)
 
 static void update_cell (cell_t * cell)
 {
-  if (cell->flags & FLAG_GOAL) {
-    return;
+  if ( ! cell->flags & FLAG_GOAL) {
+    calc_rhs (cell);
   }
-  
-  calc_rhs (cell);
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
