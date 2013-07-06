@@ -56,6 +56,26 @@ static int play;
 #define cidx(ii,jj) ((ii)+(jj)*DIMX)
 
 
+static void dump_cell (char const * pfx, cell_t const * cell)
+{
+  size_t ix, iy;
+  ix = (cell - grid) % DIMX;
+  iy = (cell - grid) / DIMX;
+  printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n",
+	  pfx, ix, iy, cell->key, cell->rhs, cell->phi);
+}
+
+
+static void dump_queue ()
+{
+  size_t ii;
+  printf ("  queue length %zu\n", pq.len);
+  for (ii = 1; ii <= pq.len; ++ii) {
+    dump_cell ("    ", pq.heap[ii]);
+  }
+}
+
+
 static void fini ()
 {
   pqueue_fini (&pq);
@@ -98,6 +118,9 @@ static void init ()
   pqueue_insert (&pq, &grid[idx]);
   
   play = 0;
+  
+  printf ("  initialized\n");
+  dump_queue ();
 }
 
 
@@ -109,24 +132,30 @@ static void update_cell (cell_t * cell)
     return;
   }
   
+  printf ("  update_cell: min of {");
   cell->rhs = NAN;
   for (succ = cell->succ; *succ != 0; ++succ) {
     double rr = 1.0 + (*succ)->phi;
-    if (NAN == cell->rhs || rr < cell->rhs) {
+    printf ("  %4g", rr);
+    if (isnan(cell->rhs) || rr < cell->rhs) {
       cell->rhs = rr;
     }
   }
+  printf ("  } is %4g\n", cell->rhs);
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
       pqueue_insert (&pq, cell);
+      dump_cell ("  update_cell: inserted ", cell);
     }
     else {
       pqueue_update (&pq, cell);
+      dump_cell ("  update_cell: updated  ", cell);
     }
   }
   else if (cell->pqi != 0) {
     pqueue_remove (&pq, cell);
+    dump_cell (  "  update_cell: removed  ", cell);
   }
 }
 
@@ -141,19 +170,24 @@ static void update ()
   }
   
   cell = pqueue_extract (&pq);
-  if (cell->phi > cell->rhs) {
+  if (isnan(cell->phi) || cell->phi > cell->rhs) {
+    dump_cell ("update: lower\n  before: ", cell);
     cell->phi = cell->rhs;
     for (succ = cell->succ; *succ != 0; ++succ) {
       update_cell (*succ);
     }
   }
   else {
+    dump_cell ("update: raise\n  before", cell);
     cell->phi = NAN;
     for (succ = cell->succ; *succ != 0; ++succ) {
       update_cell (*succ);
     }
     update_cell (cell);
   }
+  dump_cell ("  after ", cell);
+  
+  dump_queue ();
   
   gtk_widget_queue_draw (w_phi);
 }
@@ -232,7 +266,8 @@ gint cb_phi_expose (GtkWidget * ww,
 	else {
 	  if (cell->phi == cell->rhs) {
 	    // consistent
-	    cairo_set_source_rgb (cr, 0.0, 1.0 - cell->phi / phimax, 0.0);
+	    //// cairo_set_source_rgb (cr, 0.0, 1.0 - cell->phi / phimax, 0.0);
+	    cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
 	  }
 	  else {
 	    // inconsistent
@@ -242,7 +277,8 @@ gint cb_phi_expose (GtkWidget * ww,
       }
       else {
 	// queued
-	cairo_set_source_rgb (cr, 1.0 - cell->key / phimax, 0.0, 0.0);
+	//// cairo_set_source_rgb (cr, 1.0 - cell->key / phimax, 0.0, 0.0);
+	cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
       }
       cairo_rectangle (cr,
 		       w_phi_x0 + (ii-1) * w_phi_sx,
