@@ -135,15 +135,12 @@ static void calc_rhs (cell_t * cell)
   cell_t ** nbor;
   
   cell->rhs = INFINITY;
-  if (dbg) { printf ("  calc_rhs: min of {"); }
   for (nbor = cell->nbor; *nbor != 0; ++nbor) {
     double rr = (*nbor)->phi;
-    if (dbg) { printf ("  %4g", rr); }
     if (rr < cell->rhs) {
       cell->rhs = rr;
     }
   }
-  if (dbg) { printf ("  } is %4g\n", cell->rhs); }
   cell->rhs += cell->cost;
 }
 
@@ -331,7 +328,7 @@ gint cb_phi_expose (GtkWidget * ww,
 	}
 	else {
 	  double const vv = 1.0 - (cell->key - topkey) / (maxkey - topkey);
-	  cairo_set_source_rgb (cr, vv, 0.0, 0.0);
+	  cairo_set_source_rgb (cr, 0.2 + 0.8 * vv, 0.0, 0.0);
 	}
       }
       cairo_rectangle (cr,
@@ -350,23 +347,21 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
+      
       cell_t * cell = &grid[cidx(ii, jj)];
-      // default grey
-      cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
       
       if (cell->flags & FLAG_GOAL) {
 	// goal: green (unless overridden below)
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
       }
-      
-      if (cell->pqi > 0) {
-	// on queue: magenta
-	cairo_set_source_rgb (cr, 1.0, 0.0, 1.0);
-      }
       else if (cell->cost > 1.0) {
 	// obstacle: red
 	cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
       }
+      else {
+	continue;
+      }
+      
       cairo_rectangle (cr,
 		       w_phi_x0 + (ii+0.1) * w_phi_sx,
 		       w_phi_y0 + (jj+0.9) * w_phi_sy,
@@ -414,12 +409,13 @@ gint cb_phi_click (GtkWidget * ww,
 		   GdkEventButton * bb,
 		   gpointer data)
 {
-  gdouble const cx = (bb->x - w_phi_x0) / w_phi_sx + 0.5;
-  gdouble const cy = (bb->y - w_phi_y0) / w_phi_sy + 0.5;
+  gdouble const cx = (bb->x - w_phi_x0) / w_phi_sx - 0.5;
+  gdouble const cy = (bb->y - w_phi_y0) / w_phi_sy - 0.5;
   int const ix = (int) rint (cx);
   int const iy = (int) rint (cy);
   cell_t * cell;
   cell_t ** nbor;
+  size_t ii;
   
   if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
     if (dbg) { printf ("click [%4d  %4d]\n", ix, iy); }
@@ -434,6 +430,9 @@ gint cb_phi_click (GtkWidget * ww,
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
     }
+    /* for (ii = 1; ii <= pq.len; ++ii) { */
+    /*   pqueue_update (&pq, pq.heap[ii]); */
+    /* } */
     if (dbg) { dump_queue (); }
   }
   
