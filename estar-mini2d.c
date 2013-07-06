@@ -66,13 +66,66 @@ static void dump_cell (char const * pfx, cell_t const * cell)
 }
 
 
-static void dump_queue ()
+static int check (char const * pfx)
 {
-  size_t ii;
-  printf ("  queue length %zu\n", pq.len);
-  for (ii = 1; ii <= pq.len; ++ii) {
-    dump_cell ("    ", pq.heap[ii]);
+  int status;
+  size_t ii, jj, kk;
+  
+  status = 0;
+  
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      cell_t * cell;
+      cell = &grid[cidx(ii, jj)];
+      
+      if (cell->rhs == cell->phi) {
+	// consistent
+	if (0 != cell->pqi) {
+	  printf ("%sconsistent cell should not be on queue\n", pfx);
+	  status |= 1;
+	}
+      }
+      else {
+	// inconsistent
+	if (0 == cell->pqi) {
+	  printf ("%sinconsistent cell should be on queue\n", pfx);
+	  status |= 2;
+	}
+      }
+      
+      if (0 == cell->pqi) {
+	// not on queue
+	for (kk = 1; kk <= pq.len; ++kk) {
+	  if (cell == pq.heap[kk]) {
+	    printf ("%scell with pqi == 0 should not be on queue\n", pfx);
+	    status |= 4;
+	    break;
+	  }
+	}
+      }
+      else {
+	// on queue
+	for (kk = 1; kk <= pq.len; ++kk) {
+	  if (cell == pq.heap[kk]) {
+	    break;
+	  }
+	}
+	if (kk > pq.len) {
+	  printf ("%scell with pqi != 0 should be on queue\n", pfx);
+	  status |= 8;
+	}
+      }
+    }
   }
+  
+  for (kk = 1; kk <= pq.len; ++kk) {
+    if (pq.heap[kk]->pqi != kk) {
+      printf ("%sinconsistent pqi on queue\n", pfx);
+      status |= 16;
+    }
+  }
+  
+  return status;
 }
 
 
@@ -125,7 +178,7 @@ static void init ()
   
   if (dbg) {
     printf ("  initialized\n");
-    dump_queue ();
+    pqueue_dump (&pq, "  ");
   }
 }
 
@@ -172,11 +225,12 @@ static void update ()
 {
   cell_t * cell;
   cell_t ** nbor;
+  int status;
   
   if (pq.len == 0) {
     if (play) {
       play = 0;
-      g_print("PAUSE\n");
+      printf("PAUSE\n");
     }
     return;
   }
@@ -200,7 +254,13 @@ static void update ()
   
   if (dbg) {
     dump_cell ("  after ", cell);
-    dump_queue ();
+    pqueue_dump (&pq, "  ");
+  }
+  
+  status = check ("*** ");
+  if (0 != status) {
+    play = 0;
+    printf ("ERROR %d (see above)\n", status);
   }
   
   gtk_widget_queue_draw (w_phi);
@@ -211,11 +271,11 @@ void cb_play (GtkWidget * ww, gpointer data)
 {
   if (play) {
     play = 0;
-    g_print("PAUSE\n");
+    printf ("PAUSE\n");
   }
   else {
     play = 1;
-    g_print("PLAY\n");
+    printf ("PLAY\n");
   }
 }
 
@@ -224,7 +284,6 @@ void cb_next (GtkWidget * ww, gpointer data)
 {
   if (play) {
     play = 0;
-    g_print("PAUSE\n");    
   }
   else {
     update ();
@@ -234,7 +293,6 @@ void cb_next (GtkWidget * ww, gpointer data)
 
 void cb_quit (GtkWidget * ww, gpointer data)
 {
-  g_print("quit\n");
   gtk_main_quit();
 }
 
@@ -439,7 +497,7 @@ gint cb_phi_click (GtkWidget * ww,
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
     }
-    if (dbg) { dump_queue (); }
+    if (dbg) { pqueue_dump (&pq, "  "); }
   }
   
   gtk_widget_queue_draw (w_phi);
