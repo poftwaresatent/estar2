@@ -187,7 +187,7 @@ static void init ()
   pqueue_insert (&pq, &grid[idx]);
   
   play = 0;
-  dbg = 1;
+  dbg = 0;
   
   if (dbg) {
     printf ("  initialized\n");
@@ -243,10 +243,10 @@ static void update ()
   int status;
   
   if (pq.len == 0) {
-    if (play) {
-      play = 0;
-      printf("PAUSE\n");
-    }
+    /* if (play) { */
+    /*   play = 0; */
+    /*   printf("PAUSE\n"); */
+    /* } */
     return;
   }
   
@@ -400,6 +400,8 @@ gint cb_phi_expose (GtkWidget * ww,
 	// inconsistent
 	if (cell->pqi == 0) {
 	  // but not on queue: ERROR!
+	  // (this should by now be caught by checks elsewhere though)
+	  printf ("*** ERROR there is an inconsistent cell which is not on the queue.\n");
 	  cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
 	  play = 0;
 	}
