@@ -50,7 +50,7 @@ static pqueue_t pq;
 static GtkWidget * w_phi;
 static gint w_phi_width, w_phi_height;
 static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
-static int play;
+static int play, dbg;
 
 
 #define cidx(ii,jj) ((ii)+(jj)*DIMX)
@@ -90,6 +90,7 @@ static void init ()
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       idx = cidx(ii, jj);
+      grid[idx].cost = 1.0;
       grid[idx].phi = NAN;
       grid[idx].rhs = NAN;
       grid[idx].key = NAN;
@@ -118,9 +119,12 @@ static void init ()
   pqueue_insert (&pq, &grid[idx]);
   
   play = 0;
+  dbg = 0;
   
-  printf ("  initialized\n");
-  dump_queue ();
+  if (dbg) {
+    printf ("  initialized\n");
+    dump_queue ();
+  }
 }
 
 
@@ -132,30 +136,31 @@ static void update_cell (cell_t * cell)
     return;
   }
   
-  printf ("  update_cell: min of {");
+  if (dbg) { printf ("  update_cell: min of {"); }
   cell->rhs = NAN;
   for (succ = cell->succ; *succ != 0; ++succ) {
-    double rr = 1.0 + (*succ)->phi;
-    printf ("  %4g", rr);
+    double rr = (*succ)->phi;
+    if (dbg) { printf ("  %4g", rr); }
     if (isnan(cell->rhs) || rr < cell->rhs) {
       cell->rhs = rr;
     }
   }
-  printf ("  } is %4g\n", cell->rhs);
+  if (dbg) { printf ("  } is %4g\n", cell->rhs); }
+  cell->rhs += cell->cost;
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
       pqueue_insert (&pq, cell);
-      dump_cell ("  update_cell: inserted ", cell);
+      if (dbg) { dump_cell ("  update_cell: inserted ", cell); }
     }
     else {
       pqueue_update (&pq, cell);
-      dump_cell ("  update_cell: updated  ", cell);
+      if (dbg) { dump_cell ("  update_cell: updated  ", cell); }
     }
   }
   else if (cell->pqi != 0) {
     pqueue_remove (&pq, cell);
-    dump_cell (  "  update_cell: removed  ", cell);
+    if (dbg) { dump_cell (  "  update_cell: removed  ", cell); }
   }
 }
 
@@ -171,23 +176,25 @@ static void update ()
   
   cell = pqueue_extract (&pq);
   if (isnan(cell->phi) || cell->phi > cell->rhs) {
-    dump_cell ("update: lower\n  before: ", cell);
+    if (dbg) { dump_cell ("update: lower\n  before: ", cell); }
     cell->phi = cell->rhs;
     for (succ = cell->succ; *succ != 0; ++succ) {
       update_cell (*succ);
     }
   }
   else {
-    dump_cell ("update: raise\n  before", cell);
+    if (dbg) { dump_cell ("update: raise\n  before", cell); }
     cell->phi = NAN;
     for (succ = cell->succ; *succ != 0; ++succ) {
       update_cell (*succ);
     }
     update_cell (cell);
   }
-  dump_cell ("  after ", cell);
   
-  dump_queue ();
+  if (dbg) {
+    dump_cell ("  after ", cell);
+    dump_queue ();
+  }
   
   gtk_widget_queue_draw (w_phi);
 }
@@ -281,8 +288,8 @@ gint cb_phi_expose (GtkWidget * ww,
 	cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
       }
       cairo_rectangle (cr,
-		       w_phi_x0 + (ii-1) * w_phi_sx,
-		       w_phi_y0 + jj * w_phi_sy,
+		       w_phi_x0 + ii * w_phi_sx,
+		       w_phi_y0 + (jj+1) * w_phi_sy,
 		       w_phi_sx,
 		       - w_phi_sy);
       cairo_fill (cr);

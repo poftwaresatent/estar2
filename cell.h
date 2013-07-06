@@ -36,6 +36,7 @@
 #include <stddef.h>
 
 typedef struct cell_s {
+  double cost;
   double phi;
   double rhs;
   double key;
