@@ -40,8 +40,8 @@
 #include <stdlib.h>
 
 
-#define DIMX 100
-#define DIMY 100
+#define DIMX 20
+#define DIMY 20
 
 
 static cell_t grid[DIMX * DIMY];
@@ -85,41 +85,43 @@ static void fini ()
 static void init ()
 {
   size_t ii, jj, idx;
-  cell_t ** succ;
+  cell_t ** nbor;
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       idx = cidx(ii, jj);
       grid[idx].cost = 1.0;
-      grid[idx].phi = NAN;
-      grid[idx].rhs = NAN;
-      grid[idx].key = NAN;
+      grid[idx].phi = INFINITY;
+      grid[idx].rhs = INFINITY;
+      grid[idx].key = INFINITY;
       grid[idx].pqi = 0;
-      succ = grid[idx].succ;
+      grid[idx].flags = 0;
+      nbor = grid[idx].nbor;
       if (ii > 0) {
-	*(succ++) = &grid[idx - 1];
+	*(nbor++) = &grid[idx - 1];
       }
       if (ii < DIMX - 1) {
-	*(succ++) = &grid[idx + 1];
+	*(nbor++) = &grid[idx + 1];
       }
       if (jj > 0) {
-	*(succ++) = &grid[idx - DIMX];
+	*(nbor++) = &grid[idx - DIMX];
       }
       if (jj < DIMY - 1) {
-	*(succ++) = &grid[idx + DIMX];
+	*(nbor++) = &grid[idx + DIMX];
       }
-      *succ = 0;
+      *nbor = 0;
     }
   }
   
-  idx = cidx(2, 2);		/* goal */
+  idx = cidx(2, 2);
   grid[idx].rhs = 0.0;
+  grid[idx].flags |= FLAG_GOAL;
   
   pqueue_init (&pq, DIMX + DIMY);
   pqueue_insert (&pq, &grid[idx]);
   
   play = 0;
-  dbg = 0;
+  dbg = 1;
   
   if (dbg) {
     printf ("  initialized\n");
@@ -128,25 +130,31 @@ static void init ()
 }
 
 
-static void update_cell (cell_t * cell)
+static void calc_rhs (cell_t * cell)
 {
-  cell_t ** succ;
+  cell_t ** nbor;
   
-  if (cell->rhs == 0) {		/* hacked goal detection */
-    return;
-  }
-  
-  if (dbg) { printf ("  update_cell: min of {"); }
-  cell->rhs = NAN;
-  for (succ = cell->succ; *succ != 0; ++succ) {
-    double rr = (*succ)->phi;
+  cell->rhs = INFINITY;
+  if (dbg) { printf ("  calc_rhs: min of {"); }
+  for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+    double rr = (*nbor)->phi;
     if (dbg) { printf ("  %4g", rr); }
-    if (isnan(cell->rhs) || rr < cell->rhs) {
+    if (rr < cell->rhs) {
       cell->rhs = rr;
     }
   }
   if (dbg) { printf ("  } is %4g\n", cell->rhs); }
   cell->rhs += cell->cost;
+}
+
+
+static void update_cell (cell_t * cell)
+{
+  if (cell->flags & FLAG_GOAL) {
+    return;
+  }
+  
+  calc_rhs (cell);
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
@@ -168,25 +176,25 @@ static void update_cell (cell_t * cell)
 static void update ()
 {
   cell_t * cell;
-  cell_t ** succ;
+  cell_t ** nbor;
   
   if (pq.len == 0) {
     return;
   }
   
   cell = pqueue_extract (&pq);
-  if (isnan(cell->phi) || cell->phi > cell->rhs) {
+  if (cell->phi > cell->rhs) {
     if (dbg) { dump_cell ("update: lower\n  before: ", cell); }
     cell->phi = cell->rhs;
-    for (succ = cell->succ; *succ != 0; ++succ) {
-      update_cell (*succ);
+    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+      update_cell (*nbor);
     }
   }
   else {
     if (dbg) { dump_cell ("update: raise\n  before", cell); }
-    cell->phi = NAN;
-    for (succ = cell->succ; *succ != 0; ++succ) {
-      update_cell (*succ);
+    cell->phi = INFINITY;
+    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+      update_cell (*nbor);
     }
     update_cell (cell);
   }
@@ -238,16 +246,41 @@ gint cb_phi_expose (GtkWidget * ww,
 {
   size_t ii, jj;
   cairo_t * cr = gdk_cairo_create (ee->window);
-  double phimax;
+  double topkey, maxkey, maxrhs;
+  cell_t * cell;
   
-  phimax = 0.0;
+  if (pq.len > 0) {
+    topkey = pq.heap[1]->key;
+  }
+  else {
+    topkey = INFINITY;
+  }
+  maxkey = topkey;
+  for (ii = 2; ii <= pq.len; ++ii) {
+    if (pq.heap[ii]->key > maxkey) {
+      maxkey = pq.heap[ii]->key;
+    }
+  }
+  
+  maxrhs = 0.0;
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      size_t const idx = cidx(ii, jj);
-      if (phimax < grid[idx].phi) {
-	phimax = grid[idx].phi;
+      cell = &grid[cidx(ii, jj)];
+      if (cell->rhs == cell->phi && cell->rhs <= topkey && maxrhs < cell->rhs) {
+	maxrhs = cell->rhs;
       }
     }
+  }
+  if (maxrhs == 0.0) {
+    maxrhs = 0.0001;		/* avoid potential div by zero */
+  }
+  
+  if (dbg) {
+    printf ("cb_phi_expose:\n"
+	    "  topkey %4g\n"
+	    "  maxkey %4g\n"
+	    "  maxrhs %4g\n",
+	    topkey, maxkey, maxrhs);
   }
   
   cr = gdk_cairo_create (ee->window);
@@ -261,31 +294,45 @@ gint cb_phi_expose (GtkWidget * ww,
   cairo_rectangle (cr, w_phi_x0 - 2, w_phi_y0 + 2, DIMX * w_phi_sx + 4, DIMY * w_phi_sy - 4);
   cairo_stroke (cr);
   
+  //////////////////////////////////////////////////
+  // filled squares to indicate phi or key
+  
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       cell_t * cell = &grid[cidx(ii, jj)];
-      if (cell->pqi == 0) {
-	// not on queue
-	if (isnan(cell->phi)) {
-	  // unvisited
-	  cairo_set_source_rgb (cr, 0.0, 0.0, 0.5);
+      
+      if (isinf(cell->rhs)) {
+	// at infinity: indicate with blue
+	cairo_set_source_rgb (cr, 0.0, 0.0, 0.5);
+      }
+      else if (cell->rhs == cell->phi) {
+	// consistent
+	if (isinf(topkey)) {
+	  // empty queue
+	  double const vv = 1.0 - cell->rhs / maxrhs;
+	  cairo_set_source_rgb (cr, vv, vv, vv);
 	}
 	else {
-	  if (cell->phi == cell->rhs) {
-	    // consistent
-	    //// cairo_set_source_rgb (cr, 0.0, 1.0 - cell->phi / phimax, 0.0);
-	    cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
+	  if (cell->rhs <= maxrhs) {
+	    // valid: green
+	    double const vv = 1.0 - cell->rhs / maxrhs;
+	    cairo_set_source_rgb (cr, 0.0, vv, 0.0);
 	  }
 	  else {
-	    // inconsistent
-	    cairo_set_source_rgb (cr, 0.0, 1.0 - cell->phi / phimax, 0.5);
+	    // pending: yellow
+	    cairo_set_source_rgb (cr, 0.8, 0.8, 0.0);
 	  }
 	}
       }
       else {
-	// queued
-	//// cairo_set_source_rgb (cr, 1.0 - cell->key / phimax, 0.0, 0.0);
-	cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
+	// inconsistent (on queue): red
+	if (maxkey == topkey) {
+	  cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
+	}
+	else {
+	  double const vv = 1.0 - (cell->key - topkey) / (maxkey - topkey);
+	  cairo_set_source_rgb (cr, vv, 0.0, 0.0);
+	}
       }
       cairo_rectangle (cr,
 		       w_phi_x0 + ii * w_phi_sx,
@@ -293,6 +340,39 @@ gint cb_phi_expose (GtkWidget * ww,
 		       w_phi_sx,
 		       - w_phi_sy);
       cairo_fill (cr);
+    }
+  }
+  
+  //////////////////////////////////////////////////
+  // frame to indicate flags
+  
+  cairo_set_line_width (cr, 1.0);
+  
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      cell_t * cell = &grid[cidx(ii, jj)];
+      // default grey
+      cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
+      
+      if (cell->flags & FLAG_GOAL) {
+	// goal: green (unless overridden below)
+	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
+      }
+      
+      if (cell->pqi > 0) {
+	// on queue: magenta
+	cairo_set_source_rgb (cr, 1.0, 0.0, 1.0);
+      }
+      else if (cell->cost > 1.0) {
+	// obstacle: red
+	cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
+      }
+      cairo_rectangle (cr,
+		       w_phi_x0 + (ii+0.1) * w_phi_sx,
+		       w_phi_y0 + (jj+0.9) * w_phi_sy,
+		       0.8 * w_phi_sx,
+		       - 0.8 * w_phi_sy);
+      cairo_stroke (cr);
     }
   }
   
@@ -334,16 +414,27 @@ gint cb_phi_click (GtkWidget * ww,
 		   GdkEventButton * bb,
 		   gpointer data)
 {
-  size_t ii, jj;
   gdouble const cx = (bb->x - w_phi_x0) / w_phi_sx + 0.5;
   gdouble const cy = (bb->y - w_phi_y0) / w_phi_sy + 0.5;
+  int const ix = (int) rint (cx);
+  int const iy = (int) rint (cy);
+  cell_t * cell;
+  cell_t ** nbor;
   
-  for (ii = 0; ii < DIMX; ++ii) {
-    for (jj = 0; jj < DIMY; ++jj) {
-      double const dd = sqrt (pow (cx - ii, 2.0) + pow (cy - jj, 2.0));
-      size_t const idx = cidx(ii, jj);
-      grid[idx].phi  = dd;
+  if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
+    if (dbg) { printf ("click [%4d  %4d]\n", ix, iy); }
+    cell = &grid[cidx(ix, iy)];
+    if (cell->cost  < 2.0 ) {
+      cell->cost = 100.0;
     }
+    else {
+      cell->cost = 1.0;
+    }
+    update_cell (cell);
+    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+      update_cell (*nbor);
+    }
+    if (dbg) { dump_queue (); }
   }
   
   gtk_widget_queue_draw (w_phi);

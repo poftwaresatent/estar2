@@ -45,11 +45,7 @@
     (bb) = (tmp); }
 
 
-/*
-  Important to check this way around because phi can be NaN and then
-  we want to use rhs.
-*/
-#define CALC_KEY(cell) ((cell)->rhs > (cell)->phi ? (cell)->phi : (cell)->rhs)
+#define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
 
 
 static void bubble_up (cell_t ** heap, size_t index)

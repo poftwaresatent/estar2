@@ -35,13 +35,18 @@
 
 #include <stddef.h>
 
+enum {
+  FLAG_GOAL = 1
+};
+
 typedef struct cell_s {
   double cost;
   double phi;
   double rhs;
   double key;
   size_t pqi;
-  struct cell_s * succ[5];	/* null-terminated array of successors */
+  int flags;
+  struct cell_s * nbor[5];	/* null-terminated array of neighbors */
 } cell_t;
 
 #endif
