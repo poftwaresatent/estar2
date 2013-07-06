@@ -66,6 +66,22 @@ static void dump_cell (char const * pfx, cell_t const * cell)
 }
 
 
+static int check_pqi (char const * pfx)
+{
+  size_t kk;
+  
+  for (kk = 1; kk <= pq.len; ++kk) {
+    if (pq.heap[kk]->pqi != kk) {
+      printf ("%sinconsistent pqi on queue\n", pfx);
+      pqueue_dump (&pq, grid, DIMX, pfx);
+      return 1;
+    }
+  }
+  
+  return 0;
+}
+
+
 static int check (char const * pfx)
 {
   int status;
@@ -118,11 +134,8 @@ static int check (char const * pfx)
     }
   }
   
-  for (kk = 1; kk <= pq.len; ++kk) {
-    if (pq.heap[kk]->pqi != kk) {
-      printf ("%sinconsistent pqi on queue\n", pfx);
-      status |= 16;
-    }
+  if (0 != check_pqi (pfx)) {
+    status |= 16;
   }
   
   return status;
@@ -178,7 +191,7 @@ static void init ()
   
   if (dbg) {
     printf ("  initialized\n");
-    pqueue_dump (&pq, "  ");
+    pqueue_dump (&pq, grid, DIMX, "  ");
   }
 }
 
@@ -218,6 +231,8 @@ static void update_cell (cell_t * cell)
     pqueue_remove (&pq, cell);
     if (dbg) { dump_cell (  "  update_cell: removed  ", cell); }
   }
+  
+  check_pqi ("  * ");
 }
 
 
@@ -254,7 +269,7 @@ static void update ()
   
   if (dbg) {
     dump_cell ("  after ", cell);
-    pqueue_dump (&pq, "  ");
+    pqueue_dump (&pq, grid, DIMX, "  ");
   }
   
   status = check ("*** ");
@@ -497,7 +512,7 @@ gint cb_phi_click (GtkWidget * ww,
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
     }
-    if (dbg) { pqueue_dump (&pq, "  "); }
+    if (dbg) { pqueue_dump (&pq, grid, DIMX, "  "); }
   }
   
   gtk_widget_queue_draw (w_phi);

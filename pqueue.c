@@ -135,7 +135,7 @@ void pqueue_insert (pqueue_t * pq, cell_t * cell)
   
   cell->key = CALC_KEY(cell);
   heap[len] = cell;
-  cell->pqi = len;
+  cell->pqi = len;		/* initialize pqi */
   bubble_up (heap, len);
 }
 
@@ -143,6 +143,7 @@ void pqueue_insert (pqueue_t * pq, cell_t * cell)
 void pqueue_remove (pqueue_t * pq, cell_t * cell)
 {
   pq->heap[cell->pqi] = pq->heap[pq->len];
+  pq->heap[cell->pqi]->pqi = cell->pqi; /* keep pqi consistent! */
   --pq->len;
   bubble_down (pq->heap, pq->len, cell->pqi);
   cell->pqi = 0;		/* mark cell as not on queue */
@@ -177,6 +178,7 @@ cell_t * pqueue_extract (pqueue_t * pq)
   }
   
   pq->heap[1] = pq->heap[pq->len];
+  pq->heap[1]->pqi = 1;		/* keep pqi consistent */
   --pq->len;
   // here would be a good place to shrink the heap
   
@@ -186,12 +188,12 @@ cell_t * pqueue_extract (pqueue_t * pq)
 }
 
 
-void pqueue_dump (pqueue_t * pq, char const * pfx)
+void pqueue_dump (pqueue_t * pq, cell_t * grid, size_t dimx, char const * pfx)
 {
   size_t ii;
   for (ii = 1; ii <= pq->len; ++ii) {
-    printf ("%s[%zu %p]  pqi:  %zu  key: %g  phi: %g  rhs: %g\n",
-	    pfx, ii, pq->heap[ii],
+    printf ("%s[%zu %zu]  pqi:  %zu  key: %g  phi: %g  rhs: %g\n",
+	    pfx, (pq->heap[ii] - grid) % dimx, (pq->heap[ii] - grid) / dimx,
 	    pq->heap[ii]->pqi, pq->heap[ii]->key, pq->heap[ii]->phi, pq->heap[ii]->rhs);
   }
 }

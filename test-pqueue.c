@@ -103,32 +103,32 @@ int main (int argc, char ** argv)
   
   pqueue_insert (&pq, &grid[0]);
   printf ("after insertion of grid[0]  %p\n", &grid[0]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
 
   pqueue_insert (&pq, &grid[1]);
   printf ("after insertion of grid[1]  %p\n", &grid[1]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
   
   pqueue_insert (&pq, &grid[2]);
   printf ("after insertion of grid[2]  %p\n", &grid[2]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
   
   pqueue_insert (&pq, &grid[3]);
   printf ("after insertion of grid[3]  %p\n", &grid[3]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
   
   pqueue_insert (&pq, &grid[4]);
   printf ("after insertion of grid[4]  %p\n", &grid[4]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
   
   grid[1].rhs = 2.2;
   pqueue_update (&pq, &grid[1]);
   printf ("after update of grid[1] %p to 2.2\n", &grid[1]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
   
   pqueue_remove (&pq, &grid[2]);
   printf ("after removal of %p\n", &grid[2]);
-  pqueue_dump (&pq, "  ");
+  pqueue_dump (&pq, grid, 10, "  ");
   
   if (0 == check (&pq, key, sizeof(key) / sizeof(double))) {
     printf ("OK\n");

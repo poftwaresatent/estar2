@@ -52,7 +52,7 @@ void pqueue_update (pqueue_t * pq, cell_t * cell);
 
 cell_t * pqueue_extract (pqueue_t * pq);
 
-void pqueue_dump (pqueue_t * pq, char const * pfx);
+void pqueue_dump (pqueue_t * pq, cell_t * grid, size_t dimx, char const * pfx);
 
 
 #endif
