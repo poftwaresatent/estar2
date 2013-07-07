@@ -41,7 +41,7 @@
 
 #define DIMX 50
 #define DIMY 50
-
+#define ODIST 3
 
 static estar_t estar;
 
@@ -313,6 +313,84 @@ gint cb_phi_size_allocate (GtkWidget * ww,
 }
 
 
+static void change_obstacle (int cx, int cy, int dist, int add)
+{
+  int const dim = 2 * dist + 1;
+  double md2[dim * dim];
+  double * ptr;
+  double d2;
+  int x0, y0, x1, y1, ix, iy, jx, jy, nobst;
+  
+  x0 = cx - dist;
+  if (0 > x0) {
+    x0 = 0;
+  }
+  y0 = cy - dist;
+  if (0 > y0) {
+    y0 = 0;
+  }
+  x1 = cx + dist + 1;
+  if (x1 > DIMX) {
+    x1 = DIMX;
+  }
+  y1 = cy + dist + 1;
+  if (y1 > DIMY) {
+    y1 = DIMY;
+  }
+  
+  nobst = 0;
+  for (ix = x0; ix < x1; ++ix) {
+    for (iy = y0; iy < y1; ++iy) {
+      if (0 == add && ix == cx && iy == cy) {
+	continue;
+      }
+      if ((0 != add && ix == cx && iy == cy)
+	  || (grid_at (&estar.grid, ix, iy)->flags & FLAG_OBSTACLE))
+	{
+	  ptr = md2;
+	  for (jx = x0; jx < x1; ++jx) {
+	    for (jy = y0; jy < y1; ++jy) {
+	      d2 = pow (ix-jx, 2.0) + pow (iy-jy, 2.0);
+	      if (0 == nobst || d2 < *ptr) {
+		*ptr = d2;
+	      }
+	      ++ptr;
+	    }
+	  }
+	  ++nobst;
+	}
+      else {
+      }
+    }
+  }
+  
+  if (0 == nobst) {
+    for (ix = x0; ix < x1; ++ix) {
+      for (iy = y0; iy < y1; ++iy) {
+	estar_set_speed (&estar, ix, iy, 1.0);
+      }
+    }
+  }
+  else {
+    ptr = md2;
+    for (ix = x0; ix < x1; ++ix) {
+      for (iy = y0; iy < y1; ++iy) {
+	d2 = sqrt(*(ptr++)) - 0.5;
+	if (d2 < 0) {
+	  estar_set_speed (&estar, ix, iy, 0.0);
+	}
+	else if (d2 >= dist) {
+	  estar_set_speed (&estar, ix, iy, 1.0);
+	}
+	else {
+	  estar_set_speed (&estar, ix, iy, d2 / dist);
+	}
+      }
+    }
+  }
+}
+
+
 gint cb_phi_click (GtkWidget * ww,
 		   GdkEventButton * bb,
 		   gpointer data)
@@ -330,11 +408,11 @@ gint cb_phi_click (GtkWidget * ww,
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
     if (grid_at(&estar.grid, mousex, mousey)->flags & FLAG_OBSTACLE) {
       drag = -1;
-      estar_set_speed (&estar, mousex, mousey, 1.0);
+      change_obstacle (mousex, mousey, ODIST, 0);
     }
     else {
       drag = -2;
-      estar_set_speed (&estar, mousex, mousey, 0.0);
+      change_obstacle (mousex, mousey, ODIST, 1);
     }
     gtk_widget_queue_draw (w_phi);
   }
@@ -365,10 +443,10 @@ static gint cb_phi_motion(GtkWidget * ww,
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
     if (drag == 1) {
-      estar_set_speed (&estar, mousex, mousey, 1.0);
+      change_obstacle (mousex, mousey, ODIST, 0);
     }
     else {
-      estar_set_speed (&estar, mousex, mousey, 0.0);
+      change_obstacle (mousex, mousey, ODIST, 1);
     }
     gtk_widget_queue_draw (w_phi);
   }
