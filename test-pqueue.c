@@ -30,29 +30,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cell.h"
+#include "grid.h"
 #include "pqueue.h"
 
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-
-static cell_t * create_grid (size_t len)
-{
-  size_t ii;
-  cell_t * grid = malloc(len * sizeof(cell_t));
-  for (ii = 0; ii < len; ++ii) {
-    grid[ii].cost = 1.0;
-    grid[ii].phi = INFINITY;
-    grid[ii].rhs = INFINITY;
-    grid[ii].key = INFINITY;
-    grid[ii].pqi = 0;
-    grid[ii].flags = 0;
-    *grid[ii].nbor = NULL;
-  }
-  return grid;
-}
 
 
 static int check (pqueue_t * pq, double * key, size_t len)
@@ -90,45 +73,45 @@ int main (int argc, char ** argv)
 {
   pqueue_t pq;
   double key[] = { 1.1, 2.2, 2.2, 3.3 };
-  cell_t * grid;
+  grid_t grid;
   
   pqueue_init (&pq, 5);
-  grid = create_grid (10);
+  grid_init (&grid, 10, 1);
   
-  grid[0].rhs = 2.2;
-  grid[1].rhs = 3.3;
-  grid[2].rhs = 1.9;
-  grid[3].rhs = 1.1;
-  grid[4].rhs = 3.3;
+  grid.cell[0].rhs = 2.2;
+  grid.cell[1].rhs = 3.3;
+  grid.cell[2].rhs = 1.9;
+  grid.cell[3].rhs = 1.1;
+  grid.cell[4].rhs = 3.3;
   
-  pqueue_insert (&pq, &grid[0]);
-  printf ("after insertion of grid[0]  %p\n", &grid[0]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  pqueue_insert (&pq, &grid.cell[0]);
+  printf ("after insertion of grid[0]  %p\n", &grid.cell[0]);
+  pqueue_dump (&pq, &grid, "  ");
 
-  pqueue_insert (&pq, &grid[1]);
-  printf ("after insertion of grid[1]  %p\n", &grid[1]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  pqueue_insert (&pq, &grid.cell[1]);
+  printf ("after insertion of grid[1]  %p\n", &grid.cell[1]);
+  pqueue_dump (&pq, &grid, "  ");
   
-  pqueue_insert (&pq, &grid[2]);
-  printf ("after insertion of grid[2]  %p\n", &grid[2]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  pqueue_insert (&pq, &grid.cell[2]);
+  printf ("after insertion of grid[2]  %p\n", &grid.cell[2]);
+  pqueue_dump (&pq, &grid, "  ");
   
-  pqueue_insert (&pq, &grid[3]);
-  printf ("after insertion of grid[3]  %p\n", &grid[3]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  pqueue_insert (&pq, &grid.cell[3]);
+  printf ("after insertion of grid[3]  %p\n", &grid.cell[3]);
+  pqueue_dump (&pq, &grid, "  ");
   
-  pqueue_insert (&pq, &grid[4]);
-  printf ("after insertion of grid[4]  %p\n", &grid[4]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  pqueue_insert (&pq, &grid.cell[4]);
+  printf ("after insertion of grid[4]  %p\n", &grid.cell[4]);
+  pqueue_dump (&pq, &grid, "  ");
   
-  grid[1].rhs = 2.2;
-  pqueue_update (&pq, &grid[1]);
-  printf ("after update of grid[1] %p to 2.2\n", &grid[1]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  grid.cell[1].rhs = 2.2;
+  pqueue_update (&pq, &grid.cell[1]);
+  printf ("after update of grid[1] %p to 2.2\n", &grid.cell[1]);
+  pqueue_dump (&pq, &grid, "  ");
   
-  pqueue_remove (&pq, &grid[2]);
-  printf ("after removal of %p\n", &grid[2]);
-  pqueue_dump (&pq, grid, 10, "  ");
+  pqueue_remove (&pq, &grid.cell[2]);
+  printf ("after removal of %p\n", &grid.cell[2]);
+  pqueue_dump (&pq, &grid, "  ");
   
   if (0 == check (&pq, key, sizeof(key) / sizeof(double))) {
     printf ("OK\n");

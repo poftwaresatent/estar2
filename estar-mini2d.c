@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cell.h"
+#include "grid.h"
 #include "pqueue.h"
 
 #include <gtk/gtk.h>
@@ -44,7 +44,7 @@
 #define DIMY 50
 
 
-static cell_t grid[DIMX * DIMY];
+static grid_t grid;
 static pqueue_t pq;
 
 static GtkWidget * w_phi;
@@ -53,14 +53,12 @@ static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
 static int play, dbg;
 
 
-#define cidx(ii,jj) ((ii)+(jj)*DIMX)
-
 
 static void dump_cell (char const * pfx, cell_t const * cell)
 {
   size_t ix, iy;
-  ix = (cell - grid) % DIMX;
-  iy = (cell - grid) / DIMX;
+  ix = (cell - grid.cell) % DIMX;
+  iy = (cell - grid.cell) / DIMX;
   printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n",
 	  pfx, ix, iy, cell->key, cell->rhs, cell->phi);
 }
@@ -73,7 +71,7 @@ static int check_pqi (char const * pfx)
   for (kk = 1; kk <= pq.len; ++kk) {
     if (pq.heap[kk]->pqi != kk) {
       printf ("%sinconsistent pqi on queue\n", pfx);
-      pqueue_dump (&pq, grid, DIMX, pfx);
+      pqueue_dump (&pq, &grid, pfx);
       return 1;
     }
   }
@@ -92,7 +90,7 @@ static int check (char const * pfx)
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       cell_t * cell;
-      cell = &grid[cidx(ii, jj)];
+      cell = grid_at (&grid, ii, jj);
       
       if (cell->rhs == cell->phi) {
 	// consistent
@@ -144,54 +142,29 @@ static int check (char const * pfx)
 
 static void fini ()
 {
+  grid_fini (&grid);
   pqueue_fini (&pq);
 }
 
 
 static void init ()
 {
-  size_t ii, jj, idx;
-  cell_t ** nbor;
+  cell_t * goal;
   
-  for (ii = 0; ii < DIMX; ++ii) {
-    for (jj = 0; jj < DIMY; ++jj) {
-      idx = cidx(ii, jj);
-      grid[idx].cost = 1.0;
-      grid[idx].phi = INFINITY;
-      grid[idx].rhs = INFINITY;
-      grid[idx].key = INFINITY;
-      grid[idx].pqi = 0;
-      grid[idx].flags = 0;
-      nbor = grid[idx].nbor;
-      if (ii > 0) {
-	*(nbor++) = &grid[idx - 1];
-      }
-      if (ii < DIMX - 1) {
-	*(nbor++) = &grid[idx + 1];
-      }
-      if (jj > 0) {
-	*(nbor++) = &grid[idx - DIMX];
-      }
-      if (jj < DIMY - 1) {
-	*(nbor++) = &grid[idx + DIMX];
-      }
-      *nbor = 0;
-    }
-  }
-  
-  idx = cidx(2, 2);
-  grid[idx].rhs = 0.0;
-  grid[idx].flags |= FLAG_GOAL;
+  grid_init (&grid, DIMX, DIMY);
+  goal = grid_at (&grid, 2, 2);
+  goal->rhs = 0.0;
+  goal->flags |= FLAG_GOAL;
   
   pqueue_init (&pq, DIMX + DIMY);
-  pqueue_insert (&pq, &grid[idx]);
+  pqueue_insert (&pq, goal);
   
   play = 0;
   dbg = 0;
   
   if (dbg) {
     printf ("  initialized\n");
-    pqueue_dump (&pq, grid, DIMX, "  ");
+    pqueue_dump (&pq, &grid, "  ");
   }
 }
 
@@ -272,7 +245,7 @@ static void step ()
   
   if (dbg) {
     dump_cell ("  after ", cell);
-    pqueue_dump (&pq, grid, DIMX, "  ");
+    pqueue_dump (&pq, &grid, "  ");
   }
 }
 
@@ -366,7 +339,7 @@ gint cb_phi_expose (GtkWidget * ww,
   maxrhs = 0.0;
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell = &grid[cidx(ii, jj)];
+      cell = grid_at (&grid, ii, jj);
       if (cell->rhs == cell->phi && cell->rhs <= topkey && maxrhs < cell->rhs) {
 	maxrhs = cell->rhs;
       }
@@ -400,7 +373,7 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell_t * cell = &grid[cidx(ii, jj)];
+      cell_t * cell = grid_at (&grid, ii, jj);
       
       if (isinf(cell->rhs)) {
 	// at infinity: indicate with blue
@@ -461,8 +434,7 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      
-      cell_t * cell = &grid[cidx(ii, jj)];
+      cell_t * cell = grid_at (&grid, ii, jj);
       
       if (cell->flags & FLAG_GOAL) {
 	// goal: green (unless overridden below)
@@ -532,7 +504,7 @@ gint cb_phi_click (GtkWidget * ww,
   
   if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
     if (dbg) { printf ("click [%4d  %4d]\n", ix, iy); }
-    cell = &grid[cidx(ix, iy)];
+    cell = grid_at (&grid, ix, iy);
     if (cell->cost  < 2.0 ) {
       cell->cost = 100.0;
     }
@@ -543,7 +515,7 @@ gint cb_phi_click (GtkWidget * ww,
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
       update_cell (*nbor);
     }
-    if (dbg) { pqueue_dump (&pq, grid, DIMX, "  "); }
+    if (dbg) { pqueue_dump (&pq, &grid, "  "); }
   }
   
   gtk_widget_queue_draw (w_phi);

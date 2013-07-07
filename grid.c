@@ -30,32 +30,57 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ESTAR_MINI2D_PQUEUE_H
-#define ESTAR_MINI2D_PQUEUE_H
-
-
-#include "cell.h"
-
-// only for pretty printing in pqueue_dump...
 #include "grid.h"
 
-
-typedef struct {
-  cell_t ** heap;
-  size_t len, cap;
-} pqueue_t;
+#include <stdlib.h>
+#include <err.h>
+#include <math.h>
 
 
-void pqueue_init (pqueue_t * pq, size_t cap);
-void pqueue_fini (pqueue_t * pq);
+void grid_init (grid_t * grid, size_t dimx, size_t dimy)
+{
+  size_t ix, iy;
+  cell_t * cell;
+  cell_t ** nbor;
+  
+  grid->cell = malloc (sizeof(cell_t) * dimx * dimy);
+  if (NULL == grid->cell) {
+    errx (EXIT_FAILURE, __FILE__": %s: malloc", __func__);
+  }
+  grid->dimx = dimx;
+  grid->dimy = dimy;
+  
+  for (ix = 0; ix < dimx; ++ix) {
+    for (iy = 0; iy < dimy; ++iy) {
+      cell = grid_at(grid, ix, iy);
+      cell->cost = 1.0;
+      cell->phi = INFINITY;
+      cell->rhs = INFINITY;
+      cell->key = INFINITY;
+      cell->pqi = 0;
+      cell->flags = 0;
+      nbor = cell->nbor;
+      if (ix > 0) {
+	*(nbor++) = cell - 1;
+      }
+      if (ix < dimx - 1) {
+	*(nbor++) = cell + 1;
+      }
+      if (iy > 0) {
+	*(nbor++) = cell - dimx;
+      }
+      if (iy < dimy - 1) {
+	*(nbor++) = cell + dimx;
+      }
+      *nbor = 0;
+    }
+  }
+}
 
-void pqueue_insert (pqueue_t * pq, cell_t * cell);
-void pqueue_remove (pqueue_t * pq, cell_t * cell);
-void pqueue_update (pqueue_t * pq, cell_t * cell);
 
-cell_t * pqueue_extract (pqueue_t * pq);
-
-void pqueue_dump (pqueue_t * pq, grid_t * grid, char const * pfx);
-
-
-#endif
+void grid_fini (grid_t * grid)
+{
+  free (grid->cell);
+  grid->dimx = 0;
+  grid->dimy = 0;
+}
