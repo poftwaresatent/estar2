@@ -1,13 +1,17 @@
 #include <gtk/gtk.h>
 #include <err.h>
+#include <math.h>
 
-#define DIMX 50
-#define DIMY 50
+#define DIMX 5
+#define DIMY 6
 
-static GtkWidget * gw;
-static gint gw_width = 500;
-static gint gw_height = 320;
-static gint gw_sx, gw_sy, gw_x0, gw_y0;
+static GtkWidget * w_phi;
+static gint w_phi_width = 500;
+static gint w_phi_height = 320;
+static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
+
+static int lastx = -1;
+static int lasty = -1;
 
 
 static void cb_quit(GtkWidget * ww, gpointer data)
@@ -20,12 +24,39 @@ static gint cb_expose(GtkWidget * ww,
 		      GdkEventExpose * ee,
 		      gpointer data)
 {
-  cairo_t * cr = gdk_cairo_create(ee->window);
+  int ii, jj;
+  cairo_t * cr;
   
-  cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-  cairo_rectangle(cr, 0, 0, gw_width, gw_height);
-  cairo_fill(cr);
+  cr = gdk_cairo_create(ee->window);
+  
+  cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
+  cairo_rectangle (cr, 0, 0, w_phi_width, w_phi_height);
+  cairo_fill (cr);
+  
+  cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
+  cairo_set_line_width (cr, 2.0);
+  cairo_rectangle (cr, w_phi_x0 - 2, w_phi_y0 + 2, DIMX * w_phi_sx + 4, DIMY * w_phi_sy - 4);
+  cairo_stroke (cr);
+  
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      if (ii == lastx && jj == lasty) {
+	cairo_set_source_rgb (cr, 0.5, 0.5, 0.0);
+      }
+      else if (0 == (ii + jj) % 2) {
+	cairo_set_source_rgb (cr, 0.5, 0.0, 0.0);
+      }
+      else {
+	cairo_set_source_rgb (cr, 0.0, 0.5, 0.0);
+      }
+      cairo_rectangle (cr,
+		       w_phi_x0 + ii * w_phi_sx,
+		       w_phi_y0 + (jj+1) * w_phi_sy,
+		       w_phi_sx,
+		       - w_phi_sy);
+      cairo_fill (cr);
+    }
+  }
   
   cairo_destroy(cr);
   
@@ -37,25 +68,25 @@ static gint cb_size_allocate(GtkWidget * ww,
 			     GtkAllocation * aa,
 			     gpointer data)
 {
-  gw_width = aa->width;
-  gw_height = aa->height;
+  w_phi_width = aa->width;
+  w_phi_height = aa->height;
   
-  gw_sx = gw_width / DIMX;
-  if (gw_sx < 1) {
-    gw_sx = 1;
+  w_phi_sx = w_phi_width / DIMX;
+  if (w_phi_sx < 1) {
+    w_phi_sx = 1;
   }
-  gw_sy = - gw_height / DIMY;
-  if ( - gw_sy < 1) {
-    gw_sy = -1;
+  w_phi_sy = - w_phi_height / DIMY;
+  if ( - w_phi_sy < 1) {
+    w_phi_sy = -1;
   }
-  if (gw_sx > - gw_sy) {
-    gw_sx = - gw_sy;
+  if (w_phi_sx > - w_phi_sy) {
+    w_phi_sx = - w_phi_sy;
   }
   else {
-    gw_sy = - gw_sx;
+    w_phi_sy = - w_phi_sx;
   }
-  gw_x0 = (gw_width - DIMX * gw_sx) / 2;
-  gw_y0 = gw_height - (gw_height + DIMY * gw_sy) / 2;
+  w_phi_x0 = (w_phi_width - DIMX * w_phi_sx) / 2;
+  w_phi_y0 = w_phi_height - (w_phi_height + DIMY * w_phi_sy) / 2;
   
   return TRUE;
 }
@@ -65,7 +96,10 @@ static gint cb_click(GtkWidget * ww,
 		     GdkEventButton * bb,
 		     gpointer data)
 {
-  printf ("cb_click:  t: %d  x: %f  y: %f", bb->type, bb->x, bb->y);
+  lastx = (int) rint ((bb->x - w_phi_x0) / w_phi_sx - 0.5);
+  lasty = (int) rint ((bb->y - w_phi_y0) / w_phi_sy - 0.5);
+  
+  printf ("[%2d %2d] cb_click:  t: %d  x: %f  y: %f", lastx, lasty, bb->type, bb->x, bb->y);
   if (bb->type == GDK_BUTTON_PRESS) {
     printf ("  press\n");
   }
@@ -85,14 +119,19 @@ static gint cb_motion(GtkWidget * ww,
   int mx, my;
   GdkModifierType modifier;
   gdk_window_get_pointer(ww->window, &mx, &my, &modifier);
-  printf ("cb_motion:  m: %d  x: %d  y: %d\n", modifier, mx, my);
+  
+  lastx = (int) rint (((double)mx - w_phi_x0) / w_phi_sx - 0.5);
+  lasty = (int) rint (((double)my - w_phi_y0) / w_phi_sy - 0.5);
+  
+  printf ("[%2d %2d] cb_motion:  m: %d  x: %d  y: %d\n", lastx, lasty, modifier, mx, my);
+  
   return TRUE;
 }
 
 
 static gint idle(gpointer data)
 {
-  gtk_widget_queue_draw(gw);
+  gtk_widget_queue_draw(w_phi);
   return TRUE;
 }
 
@@ -109,21 +148,21 @@ static void init_gui(int * argc, char *** argv)
   gtk_container_add(GTK_CONTAINER (window), vbox);
   gtk_widget_show(vbox);
   
-  gw = gtk_drawing_area_new();
-  g_signal_connect(gw, "expose_event", G_CALLBACK (cb_expose), NULL);
-  g_signal_connect(gw, "size_allocate", G_CALLBACK (cb_size_allocate), NULL);
-  g_signal_connect(gw, "button_press_event", G_CALLBACK (cb_click), NULL);
-  g_signal_connect(gw, "button_release_event", G_CALLBACK (cb_click), NULL);
-  g_signal_connect(gw, "motion_notify_event", G_CALLBACK (cb_motion), NULL);
-  gtk_widget_set_events(gw,
+  w_phi = gtk_drawing_area_new();
+  g_signal_connect(w_phi, "expose_event", G_CALLBACK (cb_expose), NULL);
+  g_signal_connect(w_phi, "size_allocate", G_CALLBACK (cb_size_allocate), NULL);
+  g_signal_connect(w_phi, "button_press_event", G_CALLBACK (cb_click), NULL);
+  g_signal_connect(w_phi, "button_release_event", G_CALLBACK (cb_click), NULL);
+  g_signal_connect(w_phi, "motion_notify_event", G_CALLBACK (cb_motion), NULL);
+  gtk_widget_set_events(w_phi,
 			GDK_BUTTON_PRESS_MASK |
 			GDK_BUTTON_RELEASE_MASK |
 			GDK_BUTTON_MOTION_MASK);
   
-  gtk_widget_show(gw);
+  gtk_widget_show(w_phi);
   
-  gtk_widget_set_size_request(gw, gw_width, gw_height);
-  gtk_box_pack_start(GTK_BOX (vbox), gw, TRUE, TRUE, 0);
+  gtk_widget_set_size_request(w_phi, w_phi_width, w_phi_height);
+  gtk_box_pack_start(GTK_BOX (vbox), w_phi, TRUE, TRUE, 0);
   
   hbox = gtk_hbox_new(TRUE, 3);
   gtk_box_pack_start(GTK_BOX (vbox), hbox, FALSE, TRUE, 0);
