@@ -288,7 +288,7 @@ static void change_obstacle (int cx, int cy, int dist, int add)
   double md2[dim * dim];
   double * ptr;
   double d2;
-  int x0, y0, x1, y1, ix, iy, jx, jy, nobst;
+  int x0, y0, x1, y1, x2, y2, x3, y3, ix, iy, jx, jy, nobst;
   
   x0 = cx - dist;
   if (0 > x0) {
@@ -307,9 +307,26 @@ static void change_obstacle (int cx, int cy, int dist, int add)
     y1 = DIMY;
   }
   
+  x2 = cx - 2 * dist;
+  if (0 > x2) {
+    x2 = 0;
+  }
+  y2 = cy - 2 * dist;
+  if (0 > y2) {
+    y2 = 0;
+  }
+  x3 = cx + 2 * dist + 1;
+  if (x3 > DIMX) {
+    x3 = DIMX;
+  }
+  y3 = cy + 2 * dist + 1;
+  if (y3 > DIMY) {
+    y3 = DIMY;
+  }
+  
   nobst = 0;
-  for (ix = x0; ix < x1; ++ix) {
-    for (iy = y0; iy < y1; ++iy) {
+  for (ix = x2; ix < x3; ++ix) {
+    for (iy = y2; iy < y3; ++iy) {
       if (0 == add && ix == cx && iy == cy) {
 	continue;
       }
