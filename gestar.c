@@ -76,6 +76,7 @@ static void update ()
 {
   int status;
   
+  /* printf ("queue  len %zu  cap %zu\n", estar.pq.len, estar.pq.cap); */
   if (estar.pq.len == 0) {
     /* if (play) { */
     /*   play = 0; */
@@ -144,16 +145,11 @@ gint cb_phi_expose (GtkWidget * ww,
 		    gpointer data)
 {
   size_t ii, jj;
-  cairo_t * cr = gdk_cairo_create (ee->window);
+  cairo_t * cr;
   double topkey, maxkey, maxrhs;
   cell_t * cell;
   
-  if (estar.pq.len > 0) {
-    topkey = estar.pq.heap[1]->key;
-  }
-  else {
-    topkey = INFINITY;
-  }
+  topkey = pqueue_topkey (&estar.pq);
   maxkey = topkey;
   for (ii = 2; ii <= estar.pq.len; ++ii) {
     if (estar.pq.heap[ii]->key > maxkey) {

@@ -36,57 +36,86 @@
 #include <stdio.h>
 
 
-static void calc_rhs_nolsm (cell_t * cell)
-{
-  cell_t ** nbor;
-  
-  cell->rhs = INFINITY;
-  for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-    double rr = (*nbor)->phi;
-    if (rr < cell->rhs) {
-      cell->rhs = rr;
-    }
-  }
-  cell->rhs += cell->cost;
-}
-
-
-static double interpolate (double cost, double va, double vb)
+static double interpolate (double cost, double primary, double secondary)
 {
   double tmp;
   
-  if (vb < va) {
-    tmp = va;
-    va = vb;
-    vb = tmp;
-  }
-  
-  if (cost <= vb - va) {
-    return va + cost;
+  if (cost <= secondary - primary) {
+    return primary + cost;
   }
   
   // pow(cost,2) could be cached inside estar_set_speed. And so could
   // the other squared terms. That might speed things up, but it would
   // certainly make hearier caching code.
   
-  tmp = va + vb;
-  return (tmp + sqrt(pow(tmp, 2.0) - 2.0 * (pow(va, 2.0) + pow(vb, 2.0) - pow(cost, 2.0)))) / 2.0;
+  tmp = primary + secondary;
+  return (tmp + sqrt(pow(tmp, 2.0)
+		     - 2.0 * (pow(primary, 2.0)
+			      + pow(secondary, 2.0)
+			      - pow(cost, 2.0)))) / 2.0;
 }
 
 
-static void calc_rhs (cell_t * cell)
+static void calc_rhs (cell_t * cell, double phimax)
 {
   cell_t ** prop;
+  cell_t * primary;
+  cell_t * secondary;
+  double rr;
   
   cell->rhs = INFINITY;
   prop = cell->prop;
-  do {
-    double rr = interpolate (cell->cost, (*prop)->rhs, (*(prop+1))->rhs);
+  while (NULL != *prop) {
+    
+    primary = *(prop++);
+    if (primary->rhs <= (*prop)->rhs)  {
+      secondary = *(prop++);
+    }
+    else {
+      secondary = primary;
+      primary = *(prop++);
+    }
+    
+    // do not propagate from obstacles, queued cells, cells above the
+    // wavefront, or cells at infinity
+    if (primary->flags & FLAG_OBSTACLE
+	|| primary->pqi != 0
+	|| primary->phi > phimax
+	|| isinf(primary->phi)) {
+      continue;
+    }
+    
+    // the same goes from the secondary, but if that fails at least we
+    // can fall back to the non-interpolated update equation.
+    if (secondary->flags & FLAG_OBSTACLE
+	|| secondary->pqi != 0
+	|| secondary->phi > phimax
+	|| isinf(secondary->phi)) {
+      rr = primary->rhs + cell->cost;
+    }
+    else {
+      rr = interpolate (cell->cost, primary->rhs, secondary->rhs);
+    }
+    
     if (rr < cell->rhs) {
       cell->rhs = rr;
     }
-    prop += 2;
-  } while (NULL != *prop);
+  }
+  
+  // If none of the above worked, we're probably done anyway, but I'm
+  // not sure about the in-place sorting between primary and secondary
+  // above and whether that might not, in combination with infinite
+  // values maybe, create situations where we overlook something. So,
+  // just to be on the safe side, retry all non-interpolated options.
+  if (isinf (cell->rhs)) {
+    for (prop = cell->nbor; *prop != 0; ++prop) {
+      rr = (*prop)->phi;
+      if (rr < cell->rhs) {
+	cell->rhs = rr;
+      }
+    }
+    cell->rhs += cell->cost;
+  }
 }
 
 
@@ -146,7 +175,7 @@ void estar_update_cell (estar_t * estar, cell_t * cell)
     return;
   }
   
-  calc_rhs (cell);
+  calc_rhs (cell, pqueue_topkey (&estar->pq));
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {

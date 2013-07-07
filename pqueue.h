@@ -46,6 +46,8 @@ typedef struct {
 void pqueue_init (pqueue_t * pq, size_t cap);
 void pqueue_fini (pqueue_t * pq);
 
+double pqueue_topkey (pqueue_t * pq);
+
 void pqueue_insert (pqueue_t * pq, cell_t * cell);
 void pqueue_remove (pqueue_t * pq, cell_t * cell);
 void pqueue_update (pqueue_t * pq, cell_t * cell);

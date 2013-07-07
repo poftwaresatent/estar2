@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <stdio.h>
+#include <math.h>
 
 
 #define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
@@ -105,6 +106,15 @@ void pqueue_fini (pqueue_t * pq)
   free (pq->heap);
   pq->len = 0;
   pq->cap = 0;
+}
+
+
+double pqueue_topkey (pqueue_t * pq)
+{
+  if (pq->len > 0) {
+    return pq->heap[1]->key;
+  }
+  return INFINITY;
 }
 
 
