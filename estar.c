@@ -36,7 +36,7 @@
 #include <stdio.h>
 
 
-static void calc_rhs (cell_t * cell)
+static void calc_rhs_nolsm (cell_t * cell)
 {
   cell_t ** nbor;
   
@@ -48,6 +48,45 @@ static void calc_rhs (cell_t * cell)
     }
   }
   cell->rhs += cell->cost;
+}
+
+
+static double interpolate (double cost, double va, double vb)
+{
+  double tmp;
+  
+  if (vb < va) {
+    tmp = va;
+    va = vb;
+    vb = tmp;
+  }
+  
+  if (cost <= vb - va) {
+    return va + cost;
+  }
+  
+  // pow(cost,2) could be cached inside estar_set_speed. And so could
+  // the other squared terms. That might speed things up, but it would
+  // certainly make hearier caching code.
+  
+  tmp = va + vb;
+  return (tmp + sqrt(pow(tmp, 2.0) - 2.0 * (pow(va, 2.0) + pow(vb, 2.0) - pow(cost, 2.0)))) / 2.0;
+}
+
+
+static void calc_rhs (cell_t * cell)
+{
+  cell_t ** prop;
+  
+  cell->rhs = INFINITY;
+  prop = cell->prop;
+  do {
+    double rr = interpolate (cell->cost, (*prop)->rhs, (*(prop+1))->rhs);
+    if (rr < cell->rhs) {
+      cell->rhs = rr;
+    }
+    prop += 2;
+  } while (NULL != *prop);
 }
 
 
