@@ -35,16 +35,19 @@
 
 #include <stddef.h>
 
+
 enum {
-  FLAG_GOAL = 1
+  FLAG_GOAL     = 1,
+  FLAG_OBSTACLE = 2
 };
+
 
 typedef struct cell_s {
   double cost;
   double phi;
   double rhs;
-  double key;
-  size_t pqi;
+  double key;			/* managed by pqueue */
+  size_t pqi;			/* managed by pqueue */
   int flags;
   struct cell_s * nbor[5];	/* null-terminated array of neighbors */
 } cell_t;

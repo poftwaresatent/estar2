@@ -40,8 +40,8 @@
 #include <stdlib.h>
 
 
-#define DIMX 100
-#define DIMY 100
+#define DIMX 50
+#define DIMY 50
 
 
 static cell_t grid[DIMX * DIMY];
@@ -213,9 +213,14 @@ static void calc_rhs (cell_t * cell)
 
 static void update_cell (cell_t * cell)
 {
-  if ( ! cell->flags & FLAG_GOAL) {
-    calc_rhs (cell);
+  if (cell->flags & FLAG_OBSTACLE || cell->flags & FLAG_GOAL) {
+    if (cell->pqi != 0) {
+      pqueue_remove (&pq, cell);
+    }
+    return;
   }
+  
+  calc_rhs (cell);
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
