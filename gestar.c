@@ -144,39 +144,30 @@ gint cb_phi_expose (GtkWidget * ww,
 {
   size_t ii, jj;
   cairo_t * cr;
-  double topkey, maxkey, maxrhs;
+  double topkey, maxknown, maxoverall;
   cell_t * cell;
   
   topkey = pqueue_topkey (&estar.pq);
-  maxkey = topkey;
-  for (ii = 2; ii <= estar.pq.len; ++ii) {
-    if (estar.pq.heap[ii]->key > maxkey) {
-      maxkey = estar.pq.heap[ii]->key;
-    }
-  }
-  
-  maxrhs = 0.0;
+  maxknown = 0.0;
+  maxoverall = 0.0;
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       cell = grid_at (&estar.grid, ii, jj);
-      if (cell->rhs == cell->phi
-	  && cell->rhs <= topkey
-	  && maxrhs < cell->rhs
-	  && isfinite(cell->rhs)) {
-	maxrhs = cell->rhs;
+      if (cell->rhs == cell->phi && isfinite(cell->rhs)) {
+	if (0 == cell->pqi && cell->rhs <= topkey && maxknown < cell->rhs) {
+	  maxknown = cell->rhs;
+	}
+	if (maxoverall < cell->rhs) {
+	  maxoverall = cell->rhs;
+	}
       }
     }
   }
-  if (maxrhs == 0.0) {
-    maxrhs = 0.0001;		/* avoid potential div by zero */
+  if (maxknown == 0.0) {
+    maxknown = 0.0001;
   }
-  
-  if (dbg) {
-    printf ("cb_phi_expose:\n"
-	    "  topkey %4g\n"
-	    "  maxkey %4g\n"
-	    "  maxrhs %4g\n",
-	    topkey, maxkey, maxrhs);
+  if (maxoverall == 0.0) {
+    maxoverall = 0.0001;
   }
   
   cr = gdk_cairo_create (ee->window);
@@ -191,54 +182,31 @@ gint cb_phi_expose (GtkWidget * ww,
   cairo_stroke (cr);
   
   //////////////////////////////////////////////////
-  // filled squares to indicate phi or key
+  // filled squares
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       cell_t * cell = grid_at (&estar.grid, ii, jj);
       
-      if (isinf(cell->rhs)) {
-	// at infinity: indicate with blue
-	cairo_set_source_rgb (cr, 0.0, 0.0, 0.5);
-      }
-      else if (cell->rhs == cell->phi) {
-	// consistent
-	if (isinf(topkey)) {
-	  // empty queue
-	  double const vv = 1.0 - cell->rhs / maxrhs;
-	  cairo_set_source_rgb (cr, vv, vv, vv);
-	}
-	else {
-	  if (cell->rhs <= maxrhs) {
-	    // valid: green
-	    double const vv = 1.0 - cell->rhs / maxrhs;
-	    cairo_set_source_rgb (cr, 0.0, vv, 0.0);
-	  }
-	  else {
-	    // pending: yellow
-	    cairo_set_source_rgb (cr, 0.8, 0.8, 0.0);
-	  }
-	}
+      if (cell->flags & FLAG_OBSTACLE) {
+	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
       }
       else {
-	// inconsistent
-	if (cell->pqi == 0) {
-	  // but not on queue: ERROR!
-	  // (this should by now be caught by checks elsewhere though)
-	  printf ("*** ERROR there is an inconsistent cell which is not on the queue.\n");
-	  cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
-	  play = 0;
+	double red, green, blue;
+	red = 1.0 - 1.0 / cell->cost;
+	if (isinf(cell->rhs)) { /* unreached / unreachable */
+	  green = 0.0;
+	  blue = 0.5;
 	}
-	else {
-	  // on queue: red
-	  if (maxkey == topkey) {
-	    cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
-	  }
-	  else {
-	    double const vv = 1.0 - (cell->key - topkey) / (maxkey - topkey);
-	    cairo_set_source_rgb (cr, 0.2 + 0.8 * vv, 0.0, 0.0);
-	  }
+	else if (cell->rhs <= maxknown) { /* known */
+	  green = 1.0 - cell->rhs / maxknown;
+	  blue = green;
 	}
+	else {			/* to be rediscovered */
+	  green = 1.0 - cell->rhs / maxoverall;
+	  blue = 0.0;
+	}
+	cairo_set_source_rgb (cr, red, green, blue);
       }
       cairo_rectangle (cr,
 		       w_phi_x0 + ii * w_phi_sx,
@@ -250,7 +218,7 @@ gint cb_phi_expose (GtkWidget * ww,
   }
   
   //////////////////////////////////////////////////
-  // frame to indicate flags
+  // frames
   
   cairo_set_line_width (cr, 1.0);
   
@@ -258,13 +226,14 @@ gint cb_phi_expose (GtkWidget * ww,
     for (jj = 0; jj < DIMY; ++jj) {
       cell_t * cell = grid_at (&estar.grid, ii, jj);
       
-      if (cell->flags & FLAG_GOAL) {
-	// goal: green (unless overridden below)
+      if (cell->flags & FLAG_GOAL) { /* goal */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
       }
-      else if (cell->cost > 1.0) {
-	// obstacle: red
-	cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
+      else if (0 != cell->pqi) { /* on queue */
+	cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
+      }
+      else if (cell->flags & FLAG_OBSTACLE) { /* obstacle */
+	cairo_set_source_rgb (cr, 1.0, 0.0, 1.0);
       }
       else {
 	continue;
