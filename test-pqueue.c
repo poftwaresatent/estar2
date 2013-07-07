@@ -30,8 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "grid.h"
-#include "pqueue.h"
+#include "estar.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -71,49 +70,47 @@ static int check (pqueue_t * pq, double * key, size_t len)
 
 int main (int argc, char ** argv)
 {
-  pqueue_t pq;
+  estar_t estar;
   double key[] = { 1.1, 2.2, 2.2, 3.3 };
-  grid_t grid;
   
-  pqueue_init (&pq, 5);
-  grid_init (&grid, 10, 1);
+  estar_init (&estar, 10, 1);
   
-  grid.cell[0].rhs = 2.2;
-  grid.cell[1].rhs = 3.3;
-  grid.cell[2].rhs = 1.9;
-  grid.cell[3].rhs = 1.1;
-  grid.cell[4].rhs = 3.3;
+  estar.grid.cell[0].rhs = 2.2;
+  estar.grid.cell[1].rhs = 3.3;
+  estar.grid.cell[2].rhs = 1.9;
+  estar.grid.cell[3].rhs = 1.1;
+  estar.grid.cell[4].rhs = 3.3;
   
-  pqueue_insert (&pq, &grid.cell[0]);
-  printf ("after insertion of grid[0]  %p\n", &grid.cell[0]);
-  pqueue_dump (&pq, &grid, "  ");
+  pqueue_insert (&estar.pq, &estar.grid.cell[0]);
+  printf ("after insertion of grid[0]  %p\n", &estar.grid.cell[0]);
+  estar_dump_queue (&estar, "  ");
 
-  pqueue_insert (&pq, &grid.cell[1]);
-  printf ("after insertion of grid[1]  %p\n", &grid.cell[1]);
-  pqueue_dump (&pq, &grid, "  ");
+  pqueue_insert (&estar.pq, &estar.grid.cell[1]);
+  printf ("after insertion of grid[1]  %p\n", &estar.grid.cell[1]);
+  estar_dump_queue (&estar, "  ");
   
-  pqueue_insert (&pq, &grid.cell[2]);
-  printf ("after insertion of grid[2]  %p\n", &grid.cell[2]);
-  pqueue_dump (&pq, &grid, "  ");
+  pqueue_insert (&estar.pq, &estar.grid.cell[2]);
+  printf ("after insertion of grid[2]  %p\n", &estar.grid.cell[2]);
+  estar_dump_queue (&estar, "  ");
   
-  pqueue_insert (&pq, &grid.cell[3]);
-  printf ("after insertion of grid[3]  %p\n", &grid.cell[3]);
-  pqueue_dump (&pq, &grid, "  ");
+  pqueue_insert (&estar.pq, &estar.grid.cell[3]);
+  printf ("after insertion of grid[3]  %p\n", &estar.grid.cell[3]);
+  estar_dump_queue (&estar, "  ");
   
-  pqueue_insert (&pq, &grid.cell[4]);
-  printf ("after insertion of grid[4]  %p\n", &grid.cell[4]);
-  pqueue_dump (&pq, &grid, "  ");
+  pqueue_insert (&estar.pq, &estar.grid.cell[4]);
+  printf ("after insertion of grid[4]  %p\n", &estar.grid.cell[4]);
+  estar_dump_queue (&estar, "  ");
   
-  grid.cell[1].rhs = 2.2;
-  pqueue_update (&pq, &grid.cell[1]);
-  printf ("after update of grid[1] %p to 2.2\n", &grid.cell[1]);
-  pqueue_dump (&pq, &grid, "  ");
+  estar.grid.cell[1].rhs = 2.2;
+  pqueue_update (&estar.pq, &estar.grid.cell[1]);
+  printf ("after update of grid[1] %p to 2.2\n", &estar.grid.cell[1]);
+  estar_dump_queue (&estar, "  ");
   
-  pqueue_remove (&pq, &grid.cell[2]);
-  printf ("after removal of %p\n", &grid.cell[2]);
-  pqueue_dump (&pq, &grid, "  ");
+  pqueue_remove (&estar.pq, &estar.grid.cell[2]);
+  printf ("after removal of %p\n", &estar.grid.cell[2]);
+  estar_dump_queue (&estar, "  ");
   
-  if (0 == check (&pq, key, sizeof(key) / sizeof(double))) {
+  if (0 == check (&estar.pq, key, sizeof(key) / sizeof(double))) {
     printf ("OK\n");
   }
   

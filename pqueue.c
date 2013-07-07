@@ -186,16 +186,3 @@ cell_t * pqueue_extract (pqueue_t * pq)
   
   return cell;
 }
-
-
-void pqueue_dump (pqueue_t * pq, grid_t * grid, char const * pfx)
-{
-  size_t ii;
-  for (ii = 1; ii <= pq->len; ++ii) {
-    printf ("%s[%zu %zu]  pqi:  %zu  key: %g  phi: %g  rhs: %g\n",
-	    pfx,
-	    (pq->heap[ii] - grid->cell) % grid->dimx,
-	    (pq->heap[ii] - grid->cell) / grid->dimx,
-	    pq->heap[ii]->pqi, pq->heap[ii]->key, pq->heap[ii]->phi, pq->heap[ii]->rhs);
-  }
-}

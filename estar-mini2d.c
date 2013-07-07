@@ -30,8 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "grid.h"
-#include "pqueue.h"
+#include "estar.h"
 
 #include <gtk/gtk.h>
 #include <err.h>
@@ -44,8 +43,7 @@
 #define DIMY 50
 
 
-static grid_t grid;
-static pqueue_t pq;
+static estar_t estar;
 
 static GtkWidget * w_phi;
 static gint w_phi_width, w_phi_height;
@@ -53,199 +51,23 @@ static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
 static int play, dbg;
 
 
-
-static void dump_cell (char const * pfx, cell_t const * cell)
-{
-  size_t ix, iy;
-  ix = (cell - grid.cell) % DIMX;
-  iy = (cell - grid.cell) / DIMX;
-  printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n",
-	  pfx, ix, iy, cell->key, cell->rhs, cell->phi);
-}
-
-
-static int check_pqi (char const * pfx)
-{
-  size_t kk;
-  
-  for (kk = 1; kk <= pq.len; ++kk) {
-    if (pq.heap[kk]->pqi != kk) {
-      printf ("%sinconsistent pqi on queue\n", pfx);
-      pqueue_dump (&pq, &grid, pfx);
-      return 1;
-    }
-  }
-  
-  return 0;
-}
-
-
-static int check (char const * pfx)
-{
-  int status;
-  size_t ii, jj, kk;
-  
-  status = 0;
-  
-  for (ii = 0; ii < DIMX; ++ii) {
-    for (jj = 0; jj < DIMY; ++jj) {
-      cell_t * cell;
-      cell = grid_at (&grid, ii, jj);
-      
-      if (cell->rhs == cell->phi) {
-	// consistent
-	if (0 != cell->pqi) {
-	  printf ("%sconsistent cell should not be on queue\n", pfx);
-	  status |= 1;
-	}
-      }
-      else {
-	// inconsistent
-	if (0 == cell->pqi) {
-	  printf ("%sinconsistent cell should be on queue\n", pfx);
-	  status |= 2;
-	}
-      }
-      
-      if (0 == cell->pqi) {
-	// not on queue
-	for (kk = 1; kk <= pq.len; ++kk) {
-	  if (cell == pq.heap[kk]) {
-	    printf ("%scell with pqi == 0 should not be on queue\n", pfx);
-	    status |= 4;
-	    break;
-	  }
-	}
-      }
-      else {
-	// on queue
-	for (kk = 1; kk <= pq.len; ++kk) {
-	  if (cell == pq.heap[kk]) {
-	    break;
-	  }
-	}
-	if (kk > pq.len) {
-	  printf ("%scell with pqi != 0 should be on queue\n", pfx);
-	  status |= 8;
-	}
-      }
-    }
-  }
-  
-  if (0 != check_pqi (pfx)) {
-    status |= 16;
-  }
-  
-  return status;
-}
-
-
 static void fini ()
 {
-  grid_fini (&grid);
-  pqueue_fini (&pq);
+  estar_fini (&estar);
 }
 
 
 static void init ()
 {
-  cell_t * goal;
-  
-  grid_init (&grid, DIMX, DIMY);
-  goal = grid_at (&grid, 2, 2);
-  goal->rhs = 0.0;
-  goal->flags |= FLAG_GOAL;
-  
-  pqueue_init (&pq, DIMX + DIMY);
-  pqueue_insert (&pq, goal);
+  estar_init (&estar, DIMX, DIMY);
+  estar_set_goal (&estar, 2, 2);
   
   play = 0;
   dbg = 0;
   
   if (dbg) {
     printf ("  initialized\n");
-    pqueue_dump (&pq, &grid, "  ");
-  }
-}
-
-
-static void calc_rhs (cell_t * cell)
-{
-  cell_t ** nbor;
-  
-  cell->rhs = INFINITY;
-  for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-    double rr = (*nbor)->phi;
-    if (rr < cell->rhs) {
-      cell->rhs = rr;
-    }
-  }
-  cell->rhs += cell->cost;
-}
-
-
-static void update_cell (cell_t * cell)
-{
-  if (cell->flags & FLAG_OBSTACLE || cell->flags & FLAG_GOAL) {
-    if (cell->pqi != 0) {
-      pqueue_remove (&pq, cell);
-    }
-    return;
-  }
-  
-  calc_rhs (cell);
-  
-  if (cell->phi != cell->rhs) {
-    if (cell->pqi == 0) {
-      pqueue_insert (&pq, cell);
-      if (dbg) { dump_cell ("  update_cell: inserted ", cell); }
-    }
-    else {
-      pqueue_update (&pq, cell);
-      if (dbg) { dump_cell ("  update_cell: updated  ", cell); }
-    }
-  }
-  else if (cell->pqi != 0) {
-    pqueue_remove (&pq, cell);
-    if (dbg) { dump_cell (  "  update_cell: removed  ", cell); }
-  }
-  
-  if (dbg) { check_pqi ("  * "); }
-}
-
-
-static void step ()
-{
-  cell_t * cell;
-  cell_t ** nbor;
-  
-  cell = pqueue_extract (&pq);
-  if (NULL == cell) {
-    if (dbg) { printf ("step: empty queue\n"); }
-    return;
-  }
-  
-  if (dbg) { dump_cell ("step:\n  before: ", cell); }
-  
-  if (cell->phi > cell->rhs) {
-    if (dbg) { printf ("  lowering\n"); }
-    cell->phi = cell->rhs;
-    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      update_cell (*nbor);
-    }
-  }
-  else {
-    if (dbg) { printf ("  raising\n"); }
-    cell->phi = INFINITY;
-    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      update_cell (*nbor);
-    }
-    update_cell (cell);
-  }
-  
-  if (dbg) {
-    dump_cell ("  after ", cell);
-    pqueue_dump (&pq, &grid, "  ");
+    estar_dump_queue (&estar, "  ");
   }
 }
 
@@ -254,7 +76,7 @@ static void update ()
 {
   int status;
   
-  if (pq.len == 0) {
+  if (estar.pq.len == 0) {
     /* if (play) { */
     /*   play = 0; */
     /*   printf("PAUSE\n"); */
@@ -262,9 +84,9 @@ static void update ()
     return;
   }
   
-  step ();
+  estar_step (&estar);
   
-  status = check ("*** ");
+  status = estar_check (&estar, "*** ");
   if (0 != status) {
     play = 0;
     printf ("ERROR %d (see above)\n", status);
@@ -277,8 +99,8 @@ static void update ()
 void cb_flush (GtkWidget * ww, gpointer data)
 {
   printf ("FLUSH\n");
-  while (pq.len != 0) {
-    step ();
+  while (estar.pq.len != 0) {
+    estar_step (&estar);
   }
   gtk_widget_queue_draw (w_phi);
 }
@@ -323,23 +145,23 @@ gint cb_phi_expose (GtkWidget * ww,
   double topkey, maxkey, maxrhs;
   cell_t * cell;
   
-  if (pq.len > 0) {
-    topkey = pq.heap[1]->key;
+  if (estar.pq.len > 0) {
+    topkey = estar.pq.heap[1]->key;
   }
   else {
     topkey = INFINITY;
   }
   maxkey = topkey;
-  for (ii = 2; ii <= pq.len; ++ii) {
-    if (pq.heap[ii]->key > maxkey) {
-      maxkey = pq.heap[ii]->key;
+  for (ii = 2; ii <= estar.pq.len; ++ii) {
+    if (estar.pq.heap[ii]->key > maxkey) {
+      maxkey = estar.pq.heap[ii]->key;
     }
   }
   
   maxrhs = 0.0;
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell = grid_at (&grid, ii, jj);
+      cell = grid_at (&estar.grid, ii, jj);
       if (cell->rhs == cell->phi && cell->rhs <= topkey && maxrhs < cell->rhs) {
 	maxrhs = cell->rhs;
       }
@@ -373,7 +195,7 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell_t * cell = grid_at (&grid, ii, jj);
+      cell_t * cell = grid_at (&estar.grid, ii, jj);
       
       if (isinf(cell->rhs)) {
 	// at infinity: indicate with blue
@@ -434,7 +256,7 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell_t * cell = grid_at (&grid, ii, jj);
+      cell_t * cell = grid_at (&estar.grid, ii, jj);
       
       if (cell->flags & FLAG_GOAL) {
 	// goal: green (unless overridden below)
@@ -504,18 +326,17 @@ gint cb_phi_click (GtkWidget * ww,
   
   if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
     if (dbg) { printf ("click [%4d  %4d]\n", ix, iy); }
-    cell = grid_at (&grid, ix, iy);
+    cell = grid_at (&estar.grid, ix, iy);
     if (cell->cost  < 2.0 ) {
       cell->cost = 100.0;
     }
     else {
       cell->cost = 1.0;
     }
-    update_cell (cell);
+    estar_update_cell (&estar, cell);
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      update_cell (*nbor);
+      estar_update_cell (&estar, *nbor);
     }
-    if (dbg) { pqueue_dump (&pq, &grid, "  "); }
   }
   
   gtk_widget_queue_draw (w_phi);

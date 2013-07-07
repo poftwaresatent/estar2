@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <math.h>
+#include <stdio.h>
 
 
 void grid_init (grid_t * grid, size_t dimx, size_t dimy)
@@ -83,4 +84,14 @@ void grid_fini (grid_t * grid)
   free (grid->cell);
   grid->dimx = 0;
   grid->dimy = 0;
+}
+
+
+void grid_dump_cell (grid_t * grid, cell_t const * cell, char const * pfx)
+{
+  size_t ix, iy;
+  ix = (cell - grid->cell) % grid->dimx;
+  iy = (cell - grid->cell) / grid->dimx;
+  printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n",
+	  pfx, ix, iy, cell->key, cell->rhs, cell->phi);
 }

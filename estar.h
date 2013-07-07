@@ -30,29 +30,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ESTAR_MINI2D_PQUEUE_H
-#define ESTAR_MINI2D_PQUEUE_H
+#ifndef ESTAR_MINI2D_ESTAR_H
+#define ESTAR_MINI2D_ESTAR_H
 
-
-#include "cell.h"
-
-// only for pretty printing in pqueue_dump...
 #include "grid.h"
+#include "pqueue.h"
 
 
 typedef struct {
-  cell_t ** heap;
-  size_t len, cap;
-} pqueue_t;
+  grid_t grid;
+  pqueue_t pq;
+} estar_t;
 
 
-void pqueue_init (pqueue_t * pq, size_t cap);
-void pqueue_fini (pqueue_t * pq);
+void estar_init (estar_t * estar, size_t dimx, size_t dimy);
+void estar_fini (estar_t * estar);
 
-void pqueue_insert (pqueue_t * pq, cell_t * cell);
-void pqueue_remove (pqueue_t * pq, cell_t * cell);
-void pqueue_update (pqueue_t * pq, cell_t * cell);
+void estar_set_goal (estar_t * estar, size_t ix, size_t iy);
+void estar_update_cell (estar_t * estar, cell_t * cell);
+void estar_step (estar_t * estar);
 
-cell_t * pqueue_extract (pqueue_t * pq);
+void estar_dump_queue (estar_t * estar, char const * pfx);
+int estar_check (estar_t * estar, char const * pfx);
 
 #endif
