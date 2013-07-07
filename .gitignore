@@ -1,3 +1,5 @@
 *.o
 *~
 *.dSYM
+gestar
+test-pqueue
