@@ -144,18 +144,29 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy)
 
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 {
+  double cost;
   cell_t * cell;
   cell_t ** nbor;
 
   cell = grid_at (&estar->grid, ix, iy);
+
   if (speed <= 0.0) {
-    cell->cost = INFINITY;
+    cost = INFINITY;
+  }
+  else {
+    cost = 1.0 / speed;
+  }
+  if (cost == cell->cost) {
+    return;
+  }
+  
+  cell->cost = cost;
+  if (speed <= 0.0) {
     cell->phi = INFINITY;
     cell->rhs = INFINITY;
     cell->flags |= FLAG_OBSTACLE;
   }
   else {
-    cell->cost = 1.0 / speed;
     cell->flags &= ~FLAG_OBSTACLE;
   }
   

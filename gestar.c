@@ -48,7 +48,7 @@ static estar_t estar;
 static GtkWidget * w_phi;
 static gint w_phi_width, w_phi_height;
 static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
-static int play, dbg;
+static int play, dbg, mousex, mousey, drag;
 
 
 static void fini ()
@@ -64,6 +64,9 @@ static void init ()
   
   play = 0;
   dbg = 0;
+  mousex = -1;
+  mousey = -1;
+  drag = 0;
   
   if (dbg) {
     printf ("  initialized\n");
@@ -76,12 +79,7 @@ static void update ()
 {
   int status;
   
-  /* printf ("queue  len %zu  cap %zu\n", estar.pq.len, estar.pq.cap); */
-  if (estar.pq.len == 0) {
-    /* if (play) { */
-    /*   play = 0; */
-    /*   printf("PAUSE\n"); */
-    /* } */
+  if (drag > 0 || estar.pq.len == 0) {
     return;
   }
   
@@ -321,21 +319,61 @@ gint cb_phi_click (GtkWidget * ww,
 {
   gdouble const cx = (bb->x - w_phi_x0) / w_phi_sx - 0.5;
   gdouble const cy = (bb->y - w_phi_y0) / w_phi_sy - 0.5;
-  int const ix = (int) rint (cx);
-  int const iy = (int) rint (cy);
+  mousex = (int) rint (cx);
+  mousey = (int) rint (cy);
   
-  if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
-    if (grid_at(&estar.grid, ix, iy)->flags & FLAG_OBSTACLE) {
-      estar_set_speed (&estar, ix, iy, 1.0);
-    }
-    else {
-      estar_set_speed (&estar, ix, iy, 0.0);
-    }
+  if (bb->type == GDK_BUTTON_RELEASE) {
+    drag = 0;
+    return TRUE;
   }
   
-  gtk_widget_queue_draw (w_phi);
+  if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
+    if (grid_at(&estar.grid, mousex, mousey)->flags & FLAG_OBSTACLE) {
+      drag = -1;
+      estar_set_speed (&estar, mousex, mousey, 1.0);
+    }
+    else {
+      drag = -2;
+      estar_set_speed (&estar, mousex, mousey, 0.0);
+    }
+    gtk_widget_queue_draw (w_phi);
+  }
   
   return TRUE;			// TRUE to stop event propagation
+}
+
+
+static gint cb_phi_motion(GtkWidget * ww,
+			  GdkEventMotion * ee)
+{
+  int mx, my;
+  GdkModifierType modifier;
+  
+  gdk_window_get_pointer(ww->window, &mx, &my, &modifier);
+  mx = (int) rint (((double)mx - w_phi_x0) / w_phi_sx - 0.5);
+  my = (int) rint (((double)my - w_phi_y0) / w_phi_sy - 0.5);
+  
+  if (mx == mousex && my == mousey) {
+    return TRUE;
+  }
+  mousex = mx;
+  mousey = my;
+  
+  if (drag < 0) {
+    drag = -drag;
+  }
+  
+  if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
+    if (drag == 1) {
+      estar_set_speed (&estar, mousex, mousey, 1.0);
+    }
+    else {
+      estar_set_speed (&estar, mousex, mousey, 0.0);
+    }
+    gtk_widget_queue_draw (w_phi);
+  }
+  
+  return TRUE;
 }
 
 
@@ -369,7 +407,12 @@ int main (int argc, char ** argv)
   g_signal_connect (w_phi, "expose_event", G_CALLBACK (cb_phi_expose), NULL);
   g_signal_connect (w_phi, "size_allocate", G_CALLBACK (cb_phi_size_allocate), NULL);
   g_signal_connect (w_phi, "button_press_event", G_CALLBACK (cb_phi_click), NULL);
-  gtk_widget_set_events (w_phi, GDK_BUTTON_PRESS_MASK);
+  g_signal_connect (w_phi, "button_release_event", G_CALLBACK (cb_phi_click), NULL);
+  g_signal_connect (w_phi, "motion_notify_event", G_CALLBACK (cb_phi_motion), NULL);
+  gtk_widget_set_events (w_phi,
+			 GDK_BUTTON_PRESS_MASK |
+			 GDK_BUTTON_RELEASE_MASK |
+			 GDK_BUTTON_MOTION_MASK);
   
   gtk_widget_show (w_phi);
   
