@@ -138,6 +138,7 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy)
   cell_t * goal = grid_at (&estar->grid, ix, iy);
   goal->rhs = 0.0;
   goal->flags |= FLAG_GOAL;
+  goal->flags &= ~FLAG_OBSTACLE;
   pqueue_insert (&estar->pq, goal);
 }
 
@@ -149,6 +150,9 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   cell_t ** nbor;
 
   cell = grid_at (&estar->grid, ix, iy);
+  if (cell->flags & FLAG_GOAL) {
+    return;
+  }
 
   if (speed <= 0.0) {
     cost = INFINITY;
