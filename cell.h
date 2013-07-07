@@ -53,4 +53,7 @@ typedef struct cell_s {
   struct cell_s * prop[9];	/* null-terminated array of pairwise propagators */
 } cell_t;
 
+
+int cell_calc_gradient (cell_t * cell, double * gx, double * gy);
+
 #endif

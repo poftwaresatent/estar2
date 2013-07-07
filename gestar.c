@@ -42,6 +42,11 @@
 #define DIMX 50
 #define DIMY 50
 #define ODIST 3
+#define GOALX 47
+#define GOALY 2
+#define STARTX 2
+#define STARTY 47
+
 
 static estar_t estar;
 
@@ -60,7 +65,7 @@ static void fini ()
 static void init ()
 {
   estar_init (&estar, DIMX, DIMY);
-  estar_set_goal (&estar, 2, 2);
+  estar_set_goal (&estar, GOALX, GOALY);
   
   play = 0;
   dbg = 0;
@@ -186,7 +191,7 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell_t * cell = grid_at (&estar.grid, ii, jj);
+      cell = grid_at (&estar.grid, ii, jj);
       
       if (cell->flags & FLAG_OBSTACLE) {
 	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
@@ -224,9 +229,12 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell_t * cell = grid_at (&estar.grid, ii, jj);
+      cell = grid_at (&estar.grid, ii, jj);
       
-      if (cell->flags & FLAG_GOAL) { /* goal */
+      if (ii == STARTX && jj == STARTY) { /* start */
+	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
+      }
+      else if (cell->flags & FLAG_GOAL) { /* goal */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
       }
       else if (0 != cell->pqi) { /* on queue */
@@ -245,6 +253,52 @@ gint cb_phi_expose (GtkWidget * ww,
 		       0.8 * w_phi_sx,
 		       - 0.8 * w_phi_sy);
       cairo_stroke (cr);
+    }
+  }
+  
+  //////////////////////////////////////////////////
+  // if available, trace the path from start to goal
+  
+  cell = grid_at (&estar.grid, STARTX, STARTY);
+  if (0 == cell->pqi && cell->rhs <= maxknown) {
+    double px, py, dd, dmax;
+    px = STARTX + 0.5;
+    py = STARTY + 0.5;
+    dmax = 1.3 * cell->rhs;
+    
+    cairo_set_line_width (cr, 2.0);
+    
+    for (dd = 0.0; dd <= dmax; dd += 0.5) {
+      double gx, gy, gg;
+      int ix, iy;
+      if (0 == cell_calc_gradient (cell, &gx, &gy)) {
+	break;
+      }
+      gg = sqrt(pow(gx, 2.0) + pow(gy, 2.0));
+      gx *= 0.5 / gg;
+      gy *= 0.5 / gg;
+      
+      if (fmod(dd, 2.0) < 1.0) {
+	cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
+      }
+      else {
+	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
+      }
+      cairo_move_to(cr, w_phi_x0 + px * w_phi_sx, w_phi_y0 + py * w_phi_sy);
+      px += gx;
+      py += gy;
+      cairo_line_to(cr, w_phi_x0 + px * w_phi_sx, w_phi_y0 + py * w_phi_sy);
+      cairo_stroke (cr);
+      
+      ix = (int) rint(px);
+      iy = (int) rint(py);
+      if (ix < 0 || ix >= DIMX || iy < 0 || iy >= DIMY) {
+	break;
+      }
+      cell = grid_at (&estar.grid, ix, iy);
+      if (cell->flags & FLAG_GOAL) {
+	break;
+      }
     }
   }
   
