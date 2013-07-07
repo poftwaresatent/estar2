@@ -43,13 +43,14 @@ enum {
 
 
 typedef struct cell_s {
-  double cost;
+  double cost;			/* set this to 1/speed for "sensible" values */
   double phi;
   double rhs;
   double key;			/* managed by pqueue */
   size_t pqi;			/* managed by pqueue */
   int flags;
   struct cell_s * nbor[5];	/* null-terminated array of neighbors */
+  struct cell_s * prop[9];	/* null-terminated array of pairwise propagators */
 } cell_t;
 
 #endif

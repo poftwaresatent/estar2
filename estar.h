@@ -47,6 +47,8 @@ void estar_init (estar_t * estar, size_t dimx, size_t dimy);
 void estar_fini (estar_t * estar);
 
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy);
+void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed);
+
 void estar_update_cell (estar_t * estar, cell_t * cell);
 void estar_step (estar_t * estar);
 

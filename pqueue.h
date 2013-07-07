@@ -36,9 +36,6 @@
 
 #include "cell.h"
 
-// only for pretty printing in pqueue_dump...
-#include "grid.h"
-
 
 typedef struct {
   cell_t ** heap;

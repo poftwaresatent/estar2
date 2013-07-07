@@ -54,24 +54,49 @@ void grid_init (grid_t * grid, size_t dimx, size_t dimy)
   for (ix = 0; ix < dimx; ++ix) {
     for (iy = 0; iy < dimy; ++iy) {
       cell = grid_at(grid, ix, iy);
+
       cell->cost = 1.0;
       cell->phi = INFINITY;
       cell->rhs = INFINITY;
       cell->key = INFINITY;
       cell->pqi = 0;
       cell->flags = 0;
+
       nbor = cell->nbor;
-      if (ix > 0) {
+      if (ix > 0) {		/* west */
 	*(nbor++) = cell - 1;
       }
-      if (ix < dimx - 1) {
+      if (ix < dimx - 1) {	/* east */
 	*(nbor++) = cell + 1;
       }
-      if (iy > 0) {
+      if (iy > 0) {		/* south */
 	*(nbor++) = cell - dimx;
       }
-      if (iy < dimy - 1) {
+      if (iy < dimy - 1) {	/* north */
 	*(nbor++) = cell + dimx;
+      }
+      *nbor = 0;
+      
+      nbor = cell->prop;
+      if (ix > 0) {
+	if (iy > 0) {		/* south-west */
+	  *(nbor++) = cell - 1;
+	  *(nbor++) = cell - dimx;
+	}
+	if (iy < dimy - 1) {	/* north-west */
+	  *(nbor++) = cell - 1;
+	  *(nbor++) = cell + dimx;
+	}
+      }
+      if (ix < dimx - 1) {
+	if (iy > 0) {		/* south-east */
+	  *(nbor++) = cell + 1;
+	  *(nbor++) = cell - dimx;
+	}
+	if (iy < dimy - 1) {	/* north-east */
+	  *(nbor++) = cell + 1;
+	  *(nbor++) = cell + dimx;
+	}
       }
       *nbor = 0;
     }

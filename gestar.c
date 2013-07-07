@@ -123,6 +123,7 @@ void cb_next (GtkWidget * ww, gpointer data)
 {
   if (play) {
     play = 0;
+    printf ("PAUSE\n");
   }
   else {
     update ();
@@ -132,6 +133,8 @@ void cb_next (GtkWidget * ww, gpointer data)
 
 void cb_quit (GtkWidget * ww, gpointer data)
 {
+  play = 0;
+  printf ("QUIT\n");
   gtk_main_quit();
 }
 
@@ -162,7 +165,10 @@ gint cb_phi_expose (GtkWidget * ww,
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       cell = grid_at (&estar.grid, ii, jj);
-      if (cell->rhs == cell->phi && cell->rhs <= topkey && maxrhs < cell->rhs) {
+      if (cell->rhs == cell->phi
+	  && cell->rhs <= topkey
+	  && maxrhs < cell->rhs
+	  && isfinite(cell->rhs)) {
 	maxrhs = cell->rhs;
       }
     }
@@ -321,21 +327,13 @@ gint cb_phi_click (GtkWidget * ww,
   gdouble const cy = (bb->y - w_phi_y0) / w_phi_sy - 0.5;
   int const ix = (int) rint (cx);
   int const iy = (int) rint (cy);
-  cell_t * cell;
-  cell_t ** nbor;
   
   if (ix >= 0 && ix < DIMX && iy >= 0 && iy < DIMY) {
-    if (dbg) { printf ("click [%4d  %4d]\n", ix, iy); }
-    cell = grid_at (&estar.grid, ix, iy);
-    if (cell->cost  < 2.0 ) {
-      cell->cost = 100.0;
+    if (grid_at(&estar.grid, ix, iy)->flags & FLAG_OBSTACLE) {
+      estar_set_speed (&estar, ix, iy, 1.0);
     }
     else {
-      cell->cost = 1.0;
-    }
-    estar_update_cell (&estar, cell);
-    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      estar_update_cell (&estar, *nbor);
+      estar_set_speed (&estar, ix, iy, 0.0);
     }
   }
   
