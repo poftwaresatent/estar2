@@ -53,4 +53,38 @@
   \end{algorithmic}
 \end{algorithm}
 
+\begin{algorithm}
+  \caption{Update($x$)}\label{algo:update}
+  \begin{algorithmic}
+    \IF { $x \in G \cup O$ }
+      \STATE Remove($Q, x$)
+%      \COMMENT { can be no-op }
+    \ELSE
+      \STATE $\rhs(x) \leftarrow \min_{\{a,b\} \in P(x)} T(v(a),v(b))$
+      \IF { $v(x) \ne \rhs(x)$ }
+        \STATE Insert($Q, x$)
+%        \COMMENT { can be update }
+      \ELSE
+        \STATE Remove($Q, x$)
+%        \COMMENT { can be no-op }
+      \ENDIF
+    \ENDIF
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{equation}
+  T(A,B) =
+  \begin{cases}
+    A + h/F                                & \Leftarrow h/F \leq B-A \\
+    \big(\beta + \sqrt{\beta^2 - 2\gamma}\big) / 2 & \text{otherwise}
+  \end{cases}
+\end{equation}
+\noindent where
+\begin{subequations}
+  \begin{align}
+    \beta &= A + B \\
+    \gamma &= A^2 + B^2 - h^2/F^2
+  \end{align}
+\end{subequations}
+
 \end{document}
