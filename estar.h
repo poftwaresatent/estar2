@@ -49,8 +49,8 @@ void estar_fini (estar_t * estar);
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy);
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed);
 
-void estar_update_cell (estar_t * estar, cell_t * cell);
-void estar_step (estar_t * estar);
+void estar_update (estar_t * estar, cell_t * cell);
+void estar_propagate (estar_t * estar);
 
 void estar_dump_queue (estar_t * estar, char const * pfx);
 int estar_check (estar_t * estar, char const * pfx);

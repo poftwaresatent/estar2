@@ -94,7 +94,7 @@ static void calc_rhs (cell_t * cell, double phimax)
       rr = primary->rhs + cell->cost;
     }
     else {
-      rr = interpolate (cell->cost, primary->rhs, secondary->rhs);
+      rr = interpolate (cell->cost, primary->phi, secondary->phi);
     }
     
     if (rr < cell->rhs) {
@@ -102,12 +102,12 @@ static void calc_rhs (cell_t * cell, double phimax)
     }
   }
   
-  // If none of the above worked, we're probably done anyway, but I'm
-  // not sure about the in-place sorting between primary and secondary
-  // above and whether that might not, in combination with infinite
-  // values maybe, create situations where we overlook something. So,
-  // just to be on the safe side, retry all non-interpolated options.
   if (isinf (cell->rhs)) {
+    // None of the above worked, we're probably done... but I have
+    // lingering doubts about about the effects of in-place primary /
+    // secondary sorting above, it could be imagined to create
+    // situations where we overlook something. So, just to be on the
+    // safe side, let's retry all non-interpolated options.
     for (prop = cell->nbor; *prop != 0; ++prop) {
       rr = (*prop)->phi;
       if (rr < cell->rhs) {
@@ -174,14 +174,14 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
     cell->flags &= ~FLAG_OBSTACLE;
   }
   
-  estar_update_cell (estar, cell);
+  estar_update (estar, cell);
   for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-    estar_update_cell (estar, *nbor);
+    estar_update (estar, *nbor);
   }
 }
 
 
-void estar_update_cell (estar_t * estar, cell_t * cell)
+void estar_update (estar_t * estar, cell_t * cell)
 {
   if (cell->flags & FLAG_OBSTACLE || cell->flags & FLAG_GOAL) {
     if (cell->pqi != 0) {
@@ -206,7 +206,7 @@ void estar_update_cell (estar_t * estar, cell_t * cell)
 }
 
 
-void estar_step (estar_t * estar)
+void estar_propagate (estar_t * estar)
 {
   cell_t * cell;
   cell_t ** nbor;
@@ -216,18 +216,21 @@ void estar_step (estar_t * estar)
     return;
   }
   
+  // The chunk below could be placed into a function called expand,
+  // but it is not needed anywhere else.
+  
   if (cell->phi > cell->rhs) {
     cell->phi = cell->rhs;
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      estar_update_cell (estar, *nbor);
+      estar_update (estar, *nbor);
     }
   }
   else {
     cell->phi = INFINITY;
     for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      estar_update_cell (estar, *nbor);
+      estar_update (estar, *nbor);
     }
-    estar_update_cell (estar, cell);
+    estar_update (estar, cell);
   }
 }
 

@@ -88,7 +88,7 @@ static void update ()
     return;
   }
   
-  estar_step (&estar);
+  estar_propagate (&estar);
   
   status = estar_check (&estar, "*** ");
   if (0 != status) {
@@ -104,7 +104,7 @@ void cb_flush (GtkWidget * ww, gpointer data)
 {
   printf ("FLUSH\n");
   while (estar.pq.len != 0) {
-    estar_step (&estar);
+    estar_propagate (&estar);
   }
   gtk_widget_queue_draw (w_phi);
 }
