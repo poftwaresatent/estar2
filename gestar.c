@@ -261,33 +261,33 @@ gint cb_phi_expose (GtkWidget * ww,
   
   cell = grid_at (&estar.grid, STARTX, STARTY);
   if (0 == cell->pqi && cell->rhs <= maxknown) {
-    double px, py, dd, dmax;
-    px = STARTX + 0.5;
-    py = STARTY + 0.5;
+    double px, py, dd, dmax, ds;
+    px = STARTX;
+    py = STARTY;
     dmax = 1.3 * cell->rhs;
     
-    cairo_set_line_width (cr, 2.0);
-    
-    for (dd = 0.0; dd <= dmax; dd += 0.5) {
+    ds = 0.1;
+    for (dd = 0.0; dd <= dmax; dd += ds) {
       double gx, gy, gg;
       int ix, iy;
       if (0 == cell_calc_gradient (cell, &gx, &gy)) {
 	break;
       }
       gg = sqrt(pow(gx, 2.0) + pow(gy, 2.0));
-      gx *= 0.5 / gg;
-      gy *= 0.5 / gg;
+      gx *= ds / gg;
+      gy *= ds / gg;
       
+      cairo_set_line_width (cr, 2.0);
       if (fmod(dd, 2.0) < 1.0) {
 	cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
       }
       else {
 	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
       }
-      cairo_move_to(cr, w_phi_x0 + px * w_phi_sx, w_phi_y0 + py * w_phi_sy);
+      cairo_move_to(cr, w_phi_x0 + (px + 0.5) * w_phi_sx, w_phi_y0 + (py + 0.5) * w_phi_sy);
       px += gx;
       py += gy;
-      cairo_line_to(cr, w_phi_x0 + px * w_phi_sx, w_phi_y0 + py * w_phi_sy);
+      cairo_line_to(cr, w_phi_x0 + (px + 0.5) * w_phi_sx, w_phi_y0 + (py + 0.5) * w_phi_sy);
       cairo_stroke (cr);
       
       ix = (int) rint(px);
@@ -299,6 +299,20 @@ gint cb_phi_expose (GtkWidget * ww,
       if (cell->flags & FLAG_GOAL) {
 	break;
       }
+
+      /* cairo_set_line_width (cr, 1.0); */
+      /* if (fmod(dd, 2.0) < 1.0) { */
+      /* 	cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); */
+      /* } */
+      /* else { */
+      /* 	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0); */
+      /* } */
+      /* cairo_rectangle (cr, */
+      /* 		       w_phi_x0 + (ix + 0.1) * w_phi_sx, */
+      /* 		       w_phi_y0 + (iy + 0.9) * w_phi_sy, */
+      /* 		       0.8 * w_phi_sx, */
+      /* 		       - 0.8 * w_phi_sy); */
+      /* cairo_stroke (cr); */
     }
   }
   
