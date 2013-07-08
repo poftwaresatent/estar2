@@ -1,0 +1,56 @@
+\documentclass[twocolumn]{article}
+
+\usepackage[noend]{algorithmic}
+\usepackage{algorithm,amsmath}
+
+\floatname{algorithm}{procedure}
+\renewcommand{\thealgorithm}{}
+
+\newcommand{\rhs}{\text{rhs}}
+
+
+\begin{document}
+
+\title{E$^\ast$ v2}
+\author{Roland Philippsen, Halmstad University}
+\maketitle
+
+\begin{algorithm}
+  \caption{Main}\label{algo:main}
+  \begin{algorithmic}
+    \LOOP
+      \STATE ProcessChanges()
+      \STATE Propagate()
+      \IF { TopKey($Q$) $> v(r)$ }
+        \STATE status $\leftarrow$ \textsc{Success}
+      \ELSIF { Empty($Q$) }
+        \STATE status $\leftarrow$ \textsc{Failure}
+      \ELSE
+        \STATE status $\leftarrow$ \textsc{Pending}
+      \ENDIF
+    \ENDLOOP
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{Propagate}\label{algo:propagate}
+  \begin{algorithmic}
+    \IF { not Empty($Q$) }
+      \STATE $x \leftarrow$ Extract($Q$)
+      \IF { $v(x) > \rhs(x)$ }
+        \STATE $v(x) \leftarrow \rhs(x)$
+        \FORALL { $n \in N(x)$ }
+          \STATE Update($n$)
+        \ENDFOR
+      \ELSE
+        \STATE $v(x) \leftarrow \infty$
+        \FORALL { $n \in N(x)$ }
+          \STATE Update($n$)
+        \ENDFOR
+        \STATE Update($x$)
+      \ENDIF
+    \ENDIF
+  \end{algorithmic}
+\end{algorithm}
+
+\end{document}
