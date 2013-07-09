@@ -19,7 +19,7 @@
 \begin{algorithm}
   \caption{Main}
   \begin{algorithmic}
-    \STATE Initialize()
+    \STATE Initialize($g$)
     \LOOP
       \STATE ProcessChanges()
       \STATE Propagate()
@@ -58,7 +58,7 @@
 \begin{algorithm}
   \caption{Update($x$)}
   \begin{algorithmic}
-    \IF { $x \in G \cup O$ }
+    \IF { $x \in O$ or $x = g$ }
       \STATE Remove($Q, x$)
     \ELSE
       \STATE $\rhs(x) \leftarrow \min_{\{a,b\} \in P(x)} T(v(a),v(b))$
@@ -79,30 +79,55 @@
 \end{algorithm}
 
 \begin{algorithm}
-  \caption{Initialize()}
+  \caption{Initialize($g$)}
   \begin{algorithmic}
-    \STATE blah
+    \FORALL { $x \in$ grid }
+      \STATE $c(x) \leftarrow 1$
+      \STATE $v(x) \leftarrow \infty$
+      \STATE $rhs(x) \leftarrow \infty$
+      \STATE $key(x) \leftarrow \infty$
+    \ENDFOR
+    \STATE $Q \leftarrow \{\}$
+    \STATE $rhs(g) \leftarrow 0$
+    \STATE Insert($Q,g$)
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}
-  \caption{SetSpeed($bar$)}
+  \caption{SetSpeed($x, T$)}
   \begin{algorithmic}
-    \STATE blah
+    \IF { $x \neq g$ }
+      \IF { $F = 0$ }
+        \STATE $c(x) \leftarrow \infty$
+        \STATE $v(x) \leftarrow \infty$
+        \STATE $rhs(x) \leftarrow \infty$
+        \STATE $O \leftarrow O \cup {x}$
+      \ELSE
+        \STATE $c(x) \leftarrow 1/T$
+        \STATE $O \leftarrow O \\ x$
+      \ENDIF
+      \STATE Update($x$)
+      \FORALL { $n \in N(x)$ }
+        \STATE Update($n$)
+      \ENDFOR
+    \ENDIF
   \end{algorithmic}
 \end{algorithm}
 
 \begin{algorithm}
-  \caption{AddGoal($bar$)}
+  \caption{SetGoal($x$)}
   \begin{algorithmic}
-    \STATE blah
-  \end{algorithmic}
-\end{algorithm}
-
-\begin{algorithm}
-  \caption{Foo($bar$)}
-  \begin{algorithmic}
-    \STATE blah
+    \STATE $g \leftarrow x$
+    \FORALL { $x \in$ grid }
+      \STATE
+      \COMMENT { note that $c(x)$ remains unchanged }
+      \STATE $v(x) \leftarrow \infty$
+      \STATE $rhs(x) \leftarrow \infty$
+      \STATE $key(x) \leftarrow \infty$
+    \ENDFOR
+    \STATE $Q \leftarrow \{\}$
+    \STATE $rhs(g) \leftarrow 0$
+    \STATE Insert($Q,g$)
   \end{algorithmic}
 \end{algorithm}
 
@@ -144,9 +169,10 @@
     \midrule
     $x$       & a grid cell \\
     $r$       & the grid cell corresponding to the current location of the robot \\
+    $g$       & the grid cell corresponding to the goal location \\
     $Q$       & priority queue of cells to be expanded \\
     $O$       & set of obstacle cells; see procedure SetSpeed($x, F$) \\
-    $G$       & set of goal cells; see procedure AddGoal($x, T$), note that removing goals requires re-initialization \\
+    $c(x)$    & $=1/F$ where $F>0$ is the propagation speed; obstacles (with $F=0$) are handled specially \\
     $v(x)$    & crossing-time value of grid cell $x$; elsewhere denoted $T_{ij}$, $g(x)$, $\Phi(x)$, \ldots \\
     $\rhs(x)$ & one-step lookahead of $v(x)$; like D$^\ast$, the algorithm proceeds until $v(x) = \rhs(x) \;\forall$ ``$x$ that matter'' \\
     $\key(x)$ &  $= \min (v(x), \rhs(x))$; the queue is ordered by ascending $\key(x)$ \\
