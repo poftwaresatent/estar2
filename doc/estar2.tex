@@ -1,12 +1,13 @@
 \documentclass[twocolumn]{article}
 
 \usepackage[noend]{algorithmic}
-\usepackage{algorithm,amsmath}
+\usepackage{algorithm,amsmath,booktabs}
 
-\floatname{algorithm}{procedure}
+\floatname{algorithm}{Procedure}
 \renewcommand{\thealgorithm}{}
 
 \newcommand{\rhs}{\text{rhs}}
+\newcommand{\key}{\text{key}}
 
 
 \begin{document}
@@ -16,8 +17,9 @@
 \maketitle
 
 \begin{algorithm}
-  \caption{Main}\label{algo:main}
+  \caption{Main}
   \begin{algorithmic}
+    \STATE Initialize()
     \LOOP
       \STATE ProcessChanges()
       \STATE Propagate()
@@ -33,7 +35,7 @@
 \end{algorithm}
 
 \begin{algorithm}
-  \caption{Propagate}\label{algo:propagate}
+  \caption{Propagate}
   \begin{algorithmic}
     \IF { not Empty($Q$) }
       \STATE $x \leftarrow$ Extract($Q$)
@@ -54,21 +56,53 @@
 \end{algorithm}
 
 \begin{algorithm}
-  \caption{Update($x$)}\label{algo:update}
+  \caption{Update($x$)}
   \begin{algorithmic}
     \IF { $x \in G \cup O$ }
       \STATE Remove($Q, x$)
-%      \COMMENT { can be no-op }
     \ELSE
       \STATE $\rhs(x) \leftarrow \min_{\{a,b\} \in P(x)} T(v(a),v(b))$
       \IF { $v(x) \ne \rhs(x)$ }
         \STATE Insert($Q, x$)
-%        \COMMENT { can be update }
       \ELSE
         \STATE Remove($Q, x$)
-%        \COMMENT { can be no-op }
       \ENDIF
     \ENDIF
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{ProcessChanges()}
+  \begin{algorithmic}
+    \STATE blah
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{Initialize()}
+  \begin{algorithmic}
+    \STATE blah
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{SetSpeed($bar$)}
+  \begin{algorithmic}
+    \STATE blah
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{AddGoal($bar$)}
+  \begin{algorithmic}
+    \STATE blah
+  \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+  \caption{Foo($bar$)}
+  \begin{algorithmic}
+    \STATE blah
   \end{algorithmic}
 \end{algorithm}
 
@@ -86,5 +120,39 @@
     \gamma &= A^2 + B^2 - h^2/F^2
   \end{align}
 \end{subequations}
+
+\begin{table}
+  \centering
+  \begin{tabular}{@{}p{0.29\columnwidth}p{0.67\columnwidth}@{}}
+    \toprule
+    Procedure & Description \\
+    \midrule
+    TopKey($Q$)    & return the key of the topmost queue item, or $\infty$ if the queue is empty \\
+    Empty($Q$)     & return \textsc{true} if the queue is empty, \textsc{false} otherwise \\
+    Extract($Q$)   & remove (and return) the topmost item from the queue \\
+    Remove($Q, x$) & if $x\in Q$ then remove $x$ from queue, else ignore \\
+    Insert($Q, x$) & if $x\notin Q$ then insert it into the queue, else update $\key(x)$ and re-order the queue accordingly \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}
+  \centering
+  \begin{tabular}{@{}p{0.14\columnwidth}p{0.83\columnwidth}@{}}
+    \toprule
+    Notation & Meaning \\
+    \midrule
+    $x$       & a grid cell \\
+    $r$       & the grid cell corresponding to the current location of the robot \\
+    $Q$       & priority queue of cells to be expanded \\
+    $O$       & set of obstacle cells; see procedure SetSpeed($x, F$) \\
+    $G$       & set of goal cells; see procedure AddGoal($x, T$), note that removing goals requires re-initialization \\
+    $v(x)$    & crossing-time value of grid cell $x$; elsewhere denoted $T_{ij}$, $g(x)$, $\Phi(x)$, \ldots \\
+    $\rhs(x)$ & one-step lookahead of $v(x)$; like D$^\ast$, the algorithm proceeds until $v(x) = \rhs(x) \;\forall$ ``$x$ that matter'' \\
+    $\key(x)$ &  $= \min (v(x), \rhs(x))$; the queue is ordered by ascending $\key(x)$ \\
+    $N(x)$    & set of neighbors of grid cell $x$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \end{document}
