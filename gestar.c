@@ -70,13 +70,27 @@ static double compute_obound (grid_t * grid,
   pqueue_t tmpq;
   cell_t * tmpgoal;
   cell_t * tmpstart;
-  cell_t * cell;
+  cell_t * tmpcell;
+  cell_t * ocell;
   double obound;
   cell_t ** nbor;
   size_t ii, jj;
   
   grid_init (&tmpgrid, grid->dimx, grid->dimy);
   pqueue_init (&tmpq, grid->dimx + grid->dimy);
+  
+  tmpcell = tmpgrid.cell;
+  ocell = grid->cell;
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      tmpcell->cost = ocell->cost;
+      if (ocell->flags & FLAG_OBSTACLE) {
+	tmpcell->flags |= FLAG_OBSTACLE;
+      }
+      ++tmpcell;
+      ++ocell;
+    }
+  }
   
   tmpgoal = grid_at (&tmpgrid, goalx, goaly);
   tmpgoal->phi = 0.0;
@@ -86,34 +100,34 @@ static double compute_obound (grid_t * grid,
   
   tmpstart = grid_at (&tmpgrid, startx, starty);
   do {
-    cell  = pqueue_extract (&tmpq);
-    if (tmpstart == cell || NULL == cell) {
+    tmpcell  = pqueue_extract (&tmpq);
+    if (tmpstart == tmpcell || NULL == tmpcell) {
       break;
     }
-    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-      if (cell->flags & FLAG_OBSTACLE) {
+    for (nbor = tmpcell->nbor; *nbor != 0; ++nbor) {
+      if (tmpcell->flags & FLAG_OBSTACLE) {
 	continue;
       }
       if (isinf((*nbor)->phi)) {
-	(*nbor)->phi = cell->phi + (*nbor)->cost;
+	(*nbor)->phi = tmpcell->phi + (*nbor)->cost;
 	pqueue_insert (&tmpq, *nbor);
       }
     }
   } while (1);
   
-  if (NULL == cell) {
+  if (NULL == tmpcell) {
     obound = INFINITY;
   }
   else {
     obound = tmpstart->phi;
     do {
-      cell->flags |= FLAG_BOUNDPATH;
-      for (nbor = cell->nbor; *nbor != 0; ++nbor) {
-	if ((*nbor)->phi < cell->phi) {
-	  cell = *nbor;
+      tmpcell->flags |= FLAG_BOUNDPATH;
+      for (nbor = tmpcell->nbor; *nbor != 0; ++nbor) {
+	if ((*nbor)->phi < tmpcell->phi) {
+	  tmpcell = *nbor;
 	}
       }
-    } while (cell != tmpgoal);
+    } while (tmpcell != tmpgoal);
   }
   
   for (ii = 0; ii < DIMX; ++ii) {
@@ -317,7 +331,7 @@ gint cb_phi_expose (GtkWidget * ww,
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
       }
       else if (0 != cell->pqi) { /* on queue */
-	cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
+	cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
       }
       else if (cell->flags & FLAG_OBSTACLE) { /* obstacle */
 	cairo_set_source_rgb (cr, 1.0, 0.0, 1.0);
@@ -547,6 +561,7 @@ gint cb_phi_click (GtkWidget * ww,
       drag = -2;
       change_obstacle (mousex, mousey, ODIST, 1);
     }
+    compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
     gtk_widget_queue_draw (w_phi);
   }
   
@@ -581,6 +596,7 @@ static gint cb_phi_motion(GtkWidget * ww,
     else {
       change_obstacle (mousex, mousey, ODIST, 1);
     }
+    compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
     gtk_widget_queue_draw (w_phi);
   }
   
