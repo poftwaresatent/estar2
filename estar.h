@@ -38,8 +38,10 @@
 
 
 enum {
-  FLAG_GOAL     = 1,
-  FLAG_OBSTACLE = 2
+  FLAG_GOAL      = 1,
+  FLAG_OBSTACLE  = 2,
+  FLAG_DBOUND    = 4,
+  FLAG_BOUNDPATH = 8
 };
 
 

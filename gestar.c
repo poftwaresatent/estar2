@@ -42,10 +42,10 @@
 #define DIMX 50
 #define DIMY 50
 #define ODIST 3
-#define GOALX 47
-#define GOALY 2
-#define STARTX 2
-#define STARTY 47
+#define GOALX 15
+#define GOALY 15
+#define STARTX 30
+#define STARTY 30
 
 
 static estar_t estar;
@@ -62,9 +62,83 @@ static void fini ()
 }
 
 
+static double compute_obound (grid_t * grid,
+			      size_t goalx, size_t goaly,
+			      size_t startx, size_t starty)
+{
+  grid_t tmpgrid;
+  pqueue_t tmpq;
+  cell_t * tmpgoal;
+  cell_t * tmpstart;
+  cell_t * cell;
+  double obound;
+  cell_t ** nbor;
+  size_t ii, jj;
+  
+  grid_init (&tmpgrid, grid->dimx, grid->dimy);
+  pqueue_init (&tmpq, grid->dimx + grid->dimy);
+  
+  tmpgoal = grid_at (&tmpgrid, goalx, goaly);
+  tmpgoal->phi = 0.0;
+  tmpgoal->flags |= FLAG_GOAL;
+  tmpgoal->flags &= ~FLAG_OBSTACLE;
+  pqueue_insert (&tmpq, tmpgoal);
+  
+  tmpstart = grid_at (&tmpgrid, startx, starty);
+  do {
+    cell  = pqueue_extract (&tmpq);
+    if (tmpstart == cell || NULL == cell) {
+      break;
+    }
+    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+      if (cell->flags & FLAG_OBSTACLE) {
+	continue;
+      }
+      if (isinf((*nbor)->phi)) {
+	(*nbor)->phi = cell->phi + (*nbor)->cost;
+	pqueue_insert (&tmpq, *nbor);
+      }
+    }
+  } while (1);
+  
+  if (NULL == cell) {
+    obound = INFINITY;
+  }
+  else {
+    obound = tmpstart->phi;
+    do {
+      cell->flags |= FLAG_BOUNDPATH;
+      for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+	if ((*nbor)->phi < cell->phi) {
+	  cell = *nbor;
+	}
+      }
+    } while (cell != tmpgoal);
+  }
+  
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      if (grid_at (&tmpgrid, ii, jj) ->flags & FLAG_BOUNDPATH) {
+	grid_at (grid, ii, jj) ->flags |= FLAG_BOUNDPATH;
+      }
+      else {
+	grid_at (grid, ii, jj) ->flags &= ~FLAG_BOUNDPATH;
+      }
+    }
+  }
+  
+  pqueue_fini (&tmpq);
+  grid_fini (&tmpgrid);
+  return obound;
+}
+
+
 static void init ()
 {
+  double obound;
+  
   estar_init (&estar, DIMX, DIMY, NULL);
+  obound = compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
   estar_set_goal (&estar, GOALX, GOALY, INFINITY);
   
   play = 0;
@@ -204,8 +278,10 @@ gint cb_phi_expose (GtkWidget * ww,
 	  blue = 0.5;
 	}
 	else if (cell->rhs <= maxknown) { /* known */
-	  green = 1.0 - cell->rhs / maxknown;
-	  blue = green;
+	  blue = 1.0 - cell->rhs / maxknown;
+	  if ( ! (cell->flags & FLAG_DBOUND)) {
+	    green = blue;
+	  }
 	}
 	else {			/* to be rediscovered */
 	  green = 1.0 - cell->rhs / maxoverall;
@@ -236,6 +312,9 @@ gint cb_phi_expose (GtkWidget * ww,
       }
       else if (cell->flags & FLAG_GOAL) { /* goal */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
+      }
+      else if (cell->flags & FLAG_BOUNDPATH) {
+	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
       }
       else if (0 != cell->pqi) { /* on queue */
 	cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
