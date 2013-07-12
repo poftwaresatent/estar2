@@ -200,6 +200,15 @@ void estar_update (estar_t * estar, cell_t * cell)
   
   calc_rhs (cell, pqueue_topkey (&estar->pq));
   
+  if (cell->rhs + estar->hfunc(cell) >= estar->obound) {
+    cell->flags |= FLAG_DBOUND;
+    if (cell->pqi != 0) {
+      pqueue_remove (&estar->pq, cell);
+    }
+    return;
+  }
+  cell->flags &= ~FLAG_DBOUND;
+  
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
       pqueue_insert (&estar->pq, cell);
@@ -264,7 +273,7 @@ int estar_check (estar_t * estar, char const * pfx)
       }
       else {
 	// inconsistent
-	if (0 == cell->pqi) {
+	if ( (! (cell->flags | FLAG_DBOUND)) && 0 == cell->pqi) {
 	  printf ("%sinconsistent cell should be on queue\n", pfx);
 	  status |= 2;
 	}

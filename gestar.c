@@ -62,6 +62,14 @@ static void fini ()
 }
 
 
+static double hfunc (cell_t * cell)
+{
+  double dx = (cell - estar.grid.cell) % DIMX - (double) STARTX;
+  double dy = (cell - estar.grid.cell) / DIMY - (double) STARTY;
+  return sqrt (dx * dx + dy * dy);
+}
+
+
 static double compute_obound (grid_t * grid,
 			      size_t goalx, size_t goaly,
 			      size_t startx, size_t starty)
@@ -151,9 +159,9 @@ static void init ()
 {
   double obound;
   
-  estar_init (&estar, DIMX, DIMY, NULL);
+  estar_init (&estar, DIMX, DIMY, hfunc);
   obound = compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
-  estar_set_goal (&estar, GOALX, GOALY, INFINITY);
+  estar_set_goal (&estar, GOALX, GOALY, obound);
   
   play = 0;
   dbg = 0;
@@ -293,7 +301,10 @@ gint cb_phi_expose (GtkWidget * ww,
 	}
 	else if (cell->rhs <= maxknown) { /* known */
 	  blue = 1.0 - cell->rhs / maxknown;
-	  if ( ! (cell->flags & FLAG_DBOUND)) {
+	  if (cell->flags & FLAG_DBOUND) {
+	    green = 0.5 * blue;
+	  }
+	  else {
 	    green = blue;
 	  }
 	}
@@ -325,10 +336,13 @@ gint cb_phi_expose (GtkWidget * ww,
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
       else if (cell->flags & FLAG_GOAL) { /* goal */
-	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
+	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
       else if (cell->flags & FLAG_BOUNDPATH) {
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
+      }
+      else if (cell->flags & FLAG_DBOUND) {
+	cairo_set_source_rgb (cr, 0.0, 0.0, 1.0);
       }
       else if (0 != cell->pqi) { /* on queue */
 	cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
