@@ -189,6 +189,29 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 }
 
 
+void estar_set_obound (estar_t * estar, double obound)
+{
+  if (obound > estar->obound) {
+    // XXXX brute force for now, should have a separate heap for
+    // pruned cells to make this more efficient.
+    size_t ii, nn;
+    cell_t * cell;
+    nn = estar->grid.dimx * estar->grid.dimy;
+    cell = estar->grid.cell;
+    for (ii = 0; ii < nn; ++ii) {
+      if ((cell->flags & FLAG_DBOUND) && (cell->rhs + estar->hfunc(cell) < obound)) {
+	cell->flags &= ~FLAG_DBOUND;
+	cell->phi = INFINITY;
+	pqueue_insert (&estar->pq, cell);
+      }
+      ++cell;
+    }
+  }
+  
+  estar->obound = obound;
+}
+
+
 void estar_update (estar_t * estar, cell_t * cell)
 {
   if (cell->flags & FLAG_OBSTACLE || cell->flags & FLAG_GOAL) {

@@ -338,12 +338,6 @@ gint cb_phi_expose (GtkWidget * ww,
       else if (cell->flags & FLAG_GOAL) { /* goal */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
-      else if (cell->flags & FLAG_BOUNDPATH) {
-	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
-      }
-      else if (cell->flags & FLAG_DBOUND) {
-	cairo_set_source_rgb (cr, 0.0, 0.0, 1.0);
-      }
       else if (0 != cell->pqi) { /* on queue */
 	cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
       }
@@ -360,6 +354,45 @@ gint cb_phi_expose (GtkWidget * ww,
 		       0.8 * w_phi_sx,
 		       - 0.8 * w_phi_sy);
       cairo_stroke (cr);
+    }
+  }
+
+  //////////////////////////////////////////////////
+  // focussing annotations
+  
+  cairo_set_line_width (cr, 1.0);
+  
+  for (ii = 0; ii < DIMX; ++ii) {
+    for (jj = 0; jj < DIMY; ++jj) {
+      cell = grid_at (&estar.grid, ii, jj);
+      
+      if (cell->flags & FLAG_BOUNDPATH) {
+	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
+	cairo_arc(cr,
+		  w_phi_x0 + (ii+0.5) * w_phi_sx,
+		  w_phi_y0 + (jj+0.5) * w_phi_sy,
+		  0.35 * w_phi_sx,
+		  0.0,
+		  2.0 * M_PI);
+	cairo_stroke(cr);
+      }
+      
+      if (cell->flags & FLAG_DBOUND) {
+	cairo_set_source_rgb (cr, 1.0, 0.0, 0.5);
+	cairo_move_to (cr,
+		       w_phi_x0 + (ii+0.2) * w_phi_sx,
+		       w_phi_y0 + (jj+0.2) * w_phi_sy);
+	cairo_line_to (cr,
+		       w_phi_x0 + (ii+0.8) * w_phi_sx,
+		       w_phi_y0 + (jj+0.8) * w_phi_sy);
+	cairo_move_to (cr,
+		       w_phi_x0 + (ii+0.8) * w_phi_sx,
+		       w_phi_y0 + (jj+0.2) * w_phi_sy);
+	cairo_line_to (cr,
+		       w_phi_x0 + (ii+0.2) * w_phi_sx,
+		       w_phi_y0 + (jj+0.8) * w_phi_sy);
+	cairo_stroke (cr);
+      }
     }
   }
   
@@ -575,7 +608,7 @@ gint cb_phi_click (GtkWidget * ww,
       drag = -2;
       change_obstacle (mousex, mousey, ODIST, 1);
     }
-    compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
+    estar_set_obound (&estar, compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY));
     gtk_widget_queue_draw (w_phi);
   }
   
@@ -610,7 +643,7 @@ static gint cb_phi_motion(GtkWidget * ww,
     else {
       change_obstacle (mousex, mousey, ODIST, 1);
     }
-    compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
+    estar_set_obound (&estar, compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY));
     gtk_widget_queue_draw (w_phi);
   }
   
