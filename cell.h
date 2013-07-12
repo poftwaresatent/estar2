@@ -36,12 +36,6 @@
 #include <stddef.h>
 
 
-enum {
-  FLAG_GOAL     = 1,
-  FLAG_OBSTACLE = 2
-};
-
-
 typedef struct cell_s {
   double cost;			/* set this to 1/speed for "sensible" values */
   double phi;

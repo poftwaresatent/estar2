@@ -37,6 +37,12 @@
 #include "pqueue.h"
 
 
+enum {
+  FLAG_GOAL     = 1,
+  FLAG_OBSTACLE = 2
+};
+
+
 typedef double (*hfunc_t)(cell_t *);
 
 typedef struct {
