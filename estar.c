@@ -119,10 +119,12 @@ static void calc_rhs (cell_t * cell, double phimax)
 }
 
 
-void estar_init (estar_t * estar, size_t dimx, size_t dimy)
+void estar_init (estar_t * estar, size_t dimx, size_t dimy, hfunc_t hfunc)
 {
   grid_init (&estar->grid, dimx, dimy);
   pqueue_init (&estar->pq, dimx + dimy);
+  estar->hfunc = hfunc;
+  estar->obound = INFINITY;
 }
 
 
@@ -133,13 +135,19 @@ void estar_fini (estar_t * estar)
 }
 
 
-void estar_set_goal (estar_t * estar, size_t ix, size_t iy)
+// XXXX set_goal in the documentation does a re-initialization, unlike
+// this here which currently only gets called once at the
+// beginning... this version here is OK to /add/ goal cells to the
+// goal set, but that currently does not work. The interface for
+// setting the goal should be redesigned anyway.
+void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound)
 {
   cell_t * goal = grid_at (&estar->grid, ix, iy);
   goal->rhs = 0.0;
   goal->flags |= FLAG_GOAL;
   goal->flags &= ~FLAG_OBSTACLE;
   pqueue_insert (&estar->pq, goal);
+  estar->obound = obound;
 }
 
 

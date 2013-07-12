@@ -37,16 +37,20 @@
 #include "pqueue.h"
 
 
+typedef double (*hfunc_t)(cell_t *);
+
 typedef struct {
   grid_t grid;
   pqueue_t pq;
+  hfunc_t hfunc;
+  double obound;
 } estar_t;
 
 
-void estar_init (estar_t * estar, size_t dimx, size_t dimy);
+void estar_init (estar_t * estar, size_t dimx, size_t dimy, hfunc_t hfunc);
 void estar_fini (estar_t * estar);
 
-void estar_set_goal (estar_t * estar, size_t ix, size_t iy);
+void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound);
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed);
 
 void estar_update (estar_t * estar, cell_t * cell);

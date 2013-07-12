@@ -64,8 +64,8 @@ static void fini ()
 
 static void init ()
 {
-  estar_init (&estar, DIMX, DIMY);
-  estar_set_goal (&estar, GOALX, GOALY);
+  estar_init (&estar, DIMX, DIMY, NULL);
+  estar_set_goal (&estar, GOALX, GOALY, INFINITY);
   
   play = 0;
   dbg = 0;

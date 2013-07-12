@@ -73,7 +73,7 @@ int main (int argc, char ** argv)
   estar_t estar;
   double key[] = { 1.1, 2.2, 2.2, 3.3 };
   
-  estar_init (&estar, 10, 1);
+  estar_init (&estar, 10, 1, NULL);
   
   estar.grid.cell[0].rhs = 2.2;
   estar.grid.cell[1].rhs = 3.3;
