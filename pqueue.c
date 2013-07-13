@@ -31,7 +31,6 @@
  */
 
 #include "pqueue.h"
-#include "cell.h"
 
 #include <stdlib.h>
 #include <err.h>
@@ -39,62 +38,77 @@
 #include <math.h>
 
 
-#define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
+////#define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
 
 
-static void swap (cell_t ** aa, cell_t ** bb)
+static void bubble_up (size_t * heap, double * key, size_t * pos, size_t index)
 {
-  size_t ti;
-  cell_t *tc;
-  ti = (*aa)->pqi;
-  (*aa)->pqi = (*bb)->pqi;
-  (*bb)->pqi = ti;
-  tc = (*aa);
-  (*aa) = (*bb);
-  (*bb) = tc;
-}
-
-
-static void bubble_up (cell_t ** heap, size_t index)
-{
+  size_t tmp;
   size_t parent;
   parent = index / 2;
-  while ((parent > 0) && (heap[index]->key < heap[parent]->key)) {
-    swap (&heap[index], &heap[parent]);
+  while ((parent > 0) && (key[heap[index]] < key[heap[parent]])) {
+    
+    // swap
+    tmp = heap[index];
+    heap[index] = heap[parent];
+    heap[parent] = tmp;
+    pos[heap[index]] = index;
+    pos[heap[parent]] = parent;
+    
+    // go one level up
     index = parent;
     parent = index / 2;
   }
 }
 
 
-static void bubble_down (cell_t ** heap, size_t len, size_t index)
+static void bubble_down (size_t * heap, size_t heaplen, double * key, size_t * pos, size_t index)
 {
-  size_t child, target;
+  size_t child, target, tmp;
   
   target = index;
   while (1) {
+    
+    // check for need to reorder
     child = 2 * index;
-    if (child <= len && heap[child]->key < heap[target]->key) {
+    if (child <= heaplen && key[heap[child]] < key[heap[target]]) {
       target = child;
     }
     ++child;
-    if (child <= len && heap[child]->key < heap[target]->key) {
+    if (child <= heaplen && key[heap[child]] < key[heap[target]]) {
       target = child;
     }
     if (index == target) {
+      // we're done
       break;
     }
-    swap (&heap[target], &heap[index]);
+
+    // swap
+    tmp = heap[index];
+    heap[index] = heap[target];
+    heap[target] = tmp;
+    pos[heap[index]] = index;
+    pos[heap[target]] = target;
+    
+    // go one level down
     index = target;
   }
 }
 
 
-void pqueue_init (pqueue_t * pq, size_t cap)
+void pqueue_init (pqueue_t * pq, size_t cap, size_t nelem)
 {
-  pq->heap = malloc (sizeof(cell_t*) * (cap+1));
+  pq->heap = malloc ((sizeof *pq->heap) * (cap+1));
   if (NULL == pq->heap) {
-    errx (EXIT_FAILURE, __FILE__": %s: malloc", __func__);
+    errx (EXIT_FAILURE, __FILE__": %s: malloc heap", __func__);
+  }
+  pq->key = malloc ((sizeof *pq->key) * nelem);
+  if (NULL == pq->key) {
+    errx (EXIT_FAILURE, __FILE__": %s: malloc key", __func__);
+  }
+  pq->pos = calloc (nelem, sizeof *pq->pos);
+  if (NULL == pq->pos) {
+    errx (EXIT_FAILURE, __FILE__": %s: calloc pos", __func__);
   }
   pq->len = 0;
   pq->cap = cap;
@@ -103,6 +117,8 @@ void pqueue_init (pqueue_t * pq, size_t cap)
 
 void pqueue_fini (pqueue_t * pq)
 {
+  free (pq->pos);
+  free (pq->key);
   free (pq->heap);
   pq->len = 0;
   pq->cap = 0;
@@ -112,23 +128,24 @@ void pqueue_fini (pqueue_t * pq)
 double pqueue_topkey (pqueue_t * pq)
 {
   if (pq->len > 0) {
-    return pq->heap[1]->key;
+    return pq->key[pq->heap[1]];
   }
   return INFINITY;
 }
 
 
-void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
+void pqueue_insert_or_update (pqueue_t * pq, size_t elem, double key)
 {
   size_t len;
-  cell_t ** heap;
+  size_t * heap;
   
-  if (0 != cell->pqi) {
-    cell->key = CALC_KEY(cell);
-    // could probably make it more efficient by only bubbling down when
-    // the bubble up did not change cell->pqi
-    bubble_up (pq->heap, cell->pqi);
-    bubble_down (pq->heap, pq->len, cell->pqi);
+  if (0 != pq->pos[elem]) {
+    // Could possibly make it more efficient by only bubbling down
+    // when the bubble up did not change the position in the heap.
+    pq->key[elem] = key;
+    bubble_up (pq->heap, pq->key, pq->pos, pq->pos[elem]);
+    // Note that pos[elem] may have been changed by bubble_up.
+    bubble_down (pq->heap, pq->len, pq->key, pq->pos, pq->pos[elem]);
     return;
   }
   
@@ -141,7 +158,7 @@ void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
   else {
     size_t cap;
     cap = 2 * pq->cap;
-    heap = realloc (pq->heap, sizeof(cell_t*) * (cap+1));
+    heap = realloc (pq->heap, sizeof(*heap) * (cap+1));
     if (NULL == heap) {
       errx (EXIT_FAILURE, __FILE__": %s: realloc", __func__);
     }
@@ -150,53 +167,71 @@ void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
   }
   pq->len = len;
   
-  // append cell to heap and bubble up
+  // append elem to heap and bubble up
   
-  cell->key = CALC_KEY(cell);
-  heap[len] = cell;
-  cell->pqi = len;		/* initialize pqi */
-  bubble_up (heap, len);
+  pq->key[elem] = key;
+  heap[len] = elem;
+  pq->pos[elem] = len;		/* initialize pos */
+  bubble_up (heap, pq->key, pq->pos, len);
 }
 
 
-void pqueue_remove_or_ignore (pqueue_t * pq, cell_t * cell)
+void pqueue_remove_or_ignore (pqueue_t * pq, size_t elem)
 {
-  if (0 == cell->pqi) {
+  size_t pos;
+  pos = pq->pos[elem];
+  if (0 == pos) {
     // This could be done by the caller for efficiency, but it is much
     // more convenient to do it here.
     return;
   }
   
-  pq->heap[cell->pqi] = pq->heap[pq->len];
-  pq->heap[cell->pqi]->pqi = cell->pqi; /* keep pqi consistent! */
+  pq->heap[pos] = pq->heap[pq->len];
+  pq->pos[pos] = pos;		/* keep pos consistent! */
   --pq->len;
-  bubble_down (pq->heap, pq->len, cell->pqi);
-  cell->pqi = 0;		/* mark cell as not on queue */
+  bubble_down (pq->heap, pq->len, pq->key, pq->pos, pos);
+  pq->pos[elem] = 0;		/* mark elem as not on queue */
 }
 
 
-cell_t * pqueue_extract (pqueue_t * pq)
+size_t pqueue_extract_or_what (pqueue_t * pq)
 {
-  cell_t * cell;
+  size_t elem;
   
   if (0 == pq->len) {
-    return NULL;
+    return NOELEM;
   }
   
-  cell = pq->heap[1];
-  cell->pqi = 0;		/* mark cell as not on queue */
+  elem = pq->heap[1];
+  pq->pos[elem] = 0;		/* mark elem as not on queue */
   
   if (1 == pq->len) {
     pq->len = 0;
-    return cell;
+    // could free the heap here...
+    return elem;
   }
   
   pq->heap[1] = pq->heap[pq->len];
-  pq->heap[1]->pqi = 1;		/* keep pqi consistent */
+  pq->pos[pq->heap[1]] = 1;	/* keep pos consistent */
   --pq->len;
+  
   // here would be a good place to shrink the heap
   
-  bubble_down (pq->heap, pq->len, 1);
+  bubble_down (pq->heap, pq->len, pq->key, pq->pos, 1);
   
-  return cell;
+  return elem;
+}
+
+
+void pqueue_dump (pqueue_t * pq, char const * pfx)
+{
+  size_t ii;
+  for (ii = 1; ii <= pq->len; ++ii) {
+    printf ("%selem: %zu  pos:  %zu  key: %g\n",
+	    pfx,
+	    pq->heap[ii],
+	    pq->pos[pq->heap[ii]],
+	    pq->key[pq->heap[ii]]);
+  }
+
 }

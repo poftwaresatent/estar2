@@ -14,8 +14,8 @@ gestar: gestar.c $(OBJS) Makefile
 test-drag: test-drag.c Makefile
 	$(CC) $(CFLAGS) -o test-drag test-drag.c `pkg-config --cflags gtk+-2.0` `pkg-config --libs gtk+-2.0`
 
-test-pqueue: test-pqueue.c $(OBJS) Makefile
-	$(CC) $(CFLAGS) -o test-pqueue test-pqueue.c $(OBJS)
+test-pqueue: test-pqueue.c pqueue.o Makefile
+	$(CC) $(CFLAGS) -o test-pqueue test-pqueue.c pqueue.o
 
 pqueue.o: $(HDRS) pqueue.c Makefile
 grid.o: $(HDRS) grid.c Makefile
