@@ -341,9 +341,6 @@ gint cb_phi_expose (GtkWidget * ww,
       else if (0 != cell->pqi) { /* on queue */
 	cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
       }
-      else if (cell->flags & FLAG_OBSTACLE) { /* obstacle */
-	cairo_set_source_rgb (cr, 1.0, 0.0, 1.0);
-      }
       else {
 	continue;
       }
@@ -368,13 +365,13 @@ gint cb_phi_expose (GtkWidget * ww,
       
       if (cell->flags & FLAG_BOUNDPATH) {
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
-	cairo_arc(cr,
-		  w_phi_x0 + (ii+0.5) * w_phi_sx,
-		  w_phi_y0 + (jj+0.5) * w_phi_sy,
-		  0.35 * w_phi_sx,
-		  0.0,
-		  2.0 * M_PI);
-	cairo_stroke(cr);
+	cairo_arc (cr,
+		   w_phi_x0 + (ii+0.5) * w_phi_sx,
+		   w_phi_y0 + (jj+0.5) * w_phi_sy,
+		   0.35 * w_phi_sx,
+		   0.0,
+		   2.0 * M_PI);
+	cairo_stroke (cr);
       }
       
       if (cell->flags & FLAG_DBOUND) {
@@ -393,6 +390,18 @@ gint cb_phi_expose (GtkWidget * ww,
 		       w_phi_y0 + (jj+0.8) * w_phi_sy);
 	cairo_stroke (cr);
       }
+      
+      if (cell->flags & FLAG_OBSTACLE) {
+	cairo_set_source_rgb (cr, 1.0, 0.5, 1.0);
+	cairo_arc (cr,
+		   w_phi_x0 + (ii+0.5) * w_phi_sx,
+		   w_phi_y0 + (jj+0.5) * w_phi_sy,
+		   0.25 * w_phi_sx,
+		   0.0,
+		   2.0 * M_PI);
+	cairo_fill (cr);
+      }
+
     }
   }
   
