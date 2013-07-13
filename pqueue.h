@@ -33,7 +33,8 @@
 #ifndef ESTAR_MINI2D_PQUEUE_H
 #define ESTAR_MINI2D_PQUEUE_H
 
-#include <stdlib.h>
+
+#include <stddef.h>
 
 
 typedef struct {
