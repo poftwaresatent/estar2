@@ -38,13 +38,16 @@
 
 typedef struct {
   cell_t * cell;
-  size_t dimx, dimy;
+  size_t dimx, dimy, nelem;
 } grid_t;
 
 
 void grid_init (grid_t * grid, size_t dimx, size_t dimy);
 void grid_fini (grid_t * grid);
 
-#define grid_at(grid,ix,iy) (&(grid)->cell[(ix)+(iy)*(grid)->dimx])
+#define grid_elem(grid,ix,iy) ((ix) + (iy) * (grid)->dimx)
+#define grid_cell(grid,ix,iy) ((grid)->cell[(ix) + (iy) * (grid)->dimx])
+#define grid_ix(grid,elem) ((elem) % (grid)->dimx)
+#define grid_iy(grid,elem) ((elem) / (grid)->dimx)
 
 #endif

@@ -40,11 +40,11 @@
 
 void grid_init (grid_t * grid, size_t dimx, size_t dimy)
 {
-  size_t ix, iy;
-  cell_t * cell;
-  cell_t ** nbor;
+  size_t ix, iy, elem;
+  size_t * nbor;
   
-  grid->cell = malloc (sizeof(cell_t) * dimx * dimy);
+  grid->nelem = dimx * dimy;
+  grid->cell = malloc ((sizeof *grid->cell) * grid->nelem);
   if (NULL == grid->cell) {
     errx (EXIT_FAILURE, __FILE__": %s: malloc", __func__);
   }
@@ -53,52 +53,45 @@ void grid_init (grid_t * grid, size_t dimx, size_t dimy)
   
   for (ix = 0; ix < dimx; ++ix) {
     for (iy = 0; iy < dimy; ++iy) {
-      cell = grid_at(grid, ix, iy);
-
-      cell->cost = 1.0;
-      cell->phi = INFINITY;
-      cell->rhs = INFINITY;
-      cell->key = INFINITY;
-      cell->pqi = 0;
-      cell->flags = 0;
-
-      nbor = cell->nbor;
+      elem = grid_elem(grid, ix, iy);
+      
+      nbor = grid->cell[elem].nbor;
       if (ix > 0) {		/* west */
-	*(nbor++) = cell - 1;
+	*(nbor++) = elem - 1;
       }
       if (ix < dimx - 1) {	/* east */
-	*(nbor++) = cell + 1;
+	*(nbor++) = elem + 1;
       }
       if (iy > 0) {		/* south */
-	*(nbor++) = cell - dimx;
+	*(nbor++) = elem - dimx;
       }
       if (iy < dimy - 1) {	/* north */
-	*(nbor++) = cell + dimx;
+	*(nbor++) = elem + dimx;
       }
-      *nbor = 0;
+      *nbor = (size_t) -1;
       
-      nbor = cell->prop;
+      nbor = grid->cell[elem].prop;
       if (ix > 0) {
 	if (iy > 0) {		/* south-west */
-	  *(nbor++) = cell - 1;
-	  *(nbor++) = cell - dimx;
+	  *(nbor++) = elem - 1;
+	  *(nbor++) = elem - dimx;
 	}
 	if (iy < dimy - 1) {	/* north-west */
-	  *(nbor++) = cell - 1;
-	  *(nbor++) = cell + dimx;
+	  *(nbor++) = elem - 1;
+	  *(nbor++) = elem + dimx;
 	}
       }
       if (ix < dimx - 1) {
 	if (iy > 0) {		/* south-east */
-	  *(nbor++) = cell + 1;
-	  *(nbor++) = cell - dimx;
+	  *(nbor++) = elem + 1;
+	  *(nbor++) = elem - dimx;
 	}
 	if (iy < dimy - 1) {	/* north-east */
-	  *(nbor++) = cell + 1;
-	  *(nbor++) = cell + dimx;
+	  *(nbor++) = elem + 1;
+	  *(nbor++) = elem + dimx;
 	}
       }
-      *nbor = 0;
+      *nbor = (size_t) -1;
     }
   }
 }
@@ -107,16 +100,17 @@ void grid_init (grid_t * grid, size_t dimx, size_t dimy)
 void grid_fini (grid_t * grid)
 {
   free (grid->cell);
+  grid->nelem = 0;
   grid->dimx = 0;
   grid->dimy = 0;
 }
 
 
-void grid_dump_cell (grid_t * grid, cell_t const * cell, char const * pfx)
-{
-  size_t ix, iy;
-  ix = (cell - grid->cell) % grid->dimx;
-  iy = (cell - grid->cell) / grid->dimx;
-  printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n",
-	  pfx, ix, iy, cell->key, cell->rhs, cell->phi);
-}
+/* void grid_dump_cell (grid_t * grid, cell_t const * cell, char const * pfx) */
+/* { */
+/*   size_t ix, iy; */
+/*   ix = (cell - grid->cell) % grid->dimx; */
+/*   iy = (cell - grid->cell) / grid->dimx; */
+/*   printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n", */
+/* 	  pfx, ix, iy, cell->key, cell->rhs, cell->phi); */
+/* } */
