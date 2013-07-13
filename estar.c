@@ -146,7 +146,7 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound)
   goal->rhs = 0.0;
   goal->flags |= FLAG_GOAL;
   goal->flags &= ~FLAG_OBSTACLE;
-  pqueue_insert (&estar->pq, goal);
+  pqueue_insert_or_update (&estar->pq, goal);
   estar->obound = obound;
 }
 
@@ -202,7 +202,7 @@ void estar_set_obound (estar_t * estar, double obound)
       if ((cell->flags & FLAG_DBOUND) && (cell->rhs + estar->hfunc(cell) < obound)) {
 	cell->flags &= ~FLAG_DBOUND;
 	cell->phi = INFINITY;
-	pqueue_insert (&estar->pq, cell);
+	pqueue_insert_or_update (&estar->pq, cell);
       }
       ++cell;
     }
@@ -215,24 +215,17 @@ void estar_set_obound (estar_t * estar, double obound)
 void estar_update (estar_t * estar, cell_t * cell)
 {
   if (cell->flags & (FLAG_OBSTACLE | FLAG_GOAL)) {
-    if (cell->pqi != 0) {
-      pqueue_remove (&estar->pq, cell);
-    }
+    pqueue_remove_or_ignore (&estar->pq, cell);
     return;
   }
   
   calc_rhs (cell, pqueue_topkey (&estar->pq));
   
   if (cell->phi != cell->rhs) {
-    if (cell->pqi == 0) {
-      pqueue_insert (&estar->pq, cell);
-    }
-    else {
-      pqueue_update (&estar->pq, cell);
-    }
+    pqueue_insert_or_update (&estar->pq, cell);
   }
-  else if (cell->pqi != 0) {
-    pqueue_remove (&estar->pq, cell);
+  else {
+    pqueue_remove_or_ignore (&estar->pq, cell);
   }
 }
 
@@ -330,11 +323,13 @@ int estar_check (estar_t * estar, char const * pfx)
   
   for (ii = 1; ii <= estar->pq.len; ++ii) {
     if (estar->pq.heap[ii]->pqi != ii) {
-      printf ("%sinconsistent pqi\n", pfx);
-      estar_dump_queue (estar, pfx);
+      printf ("%sinconsistent pqi %zu should be %zu\n", pfx, estar->pq.heap[ii]->pqi, ii);
       status |= 16;
       break;
     }
+  }
+  if (status & 16) {
+    estar_dump_queue (estar, pfx);
   }
   
   return status;

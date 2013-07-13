@@ -104,7 +104,7 @@ static double compute_obound (grid_t * grid,
   tmpgoal->phi = 0.0;
   tmpgoal->flags |= FLAG_GOAL;
   tmpgoal->flags &= ~FLAG_OBSTACLE;
-  pqueue_insert (&tmpq, tmpgoal);
+  pqueue_insert_or_update (&tmpq, tmpgoal);
   
   tmpstart = grid_at (&tmpgrid, startx, starty);
   do {
@@ -118,7 +118,7 @@ static double compute_obound (grid_t * grid,
       }
       if (isinf((*nbor)->phi)) {
 	(*nbor)->phi = tmpcell->phi + (*nbor)->cost;
-	pqueue_insert (&tmpq, *nbor);
+	pqueue_insert_or_update (&tmpq, *nbor);
       }
     }
   } while (1);
