@@ -600,7 +600,11 @@ gint cb_phi_click (GtkWidget * ww,
   }
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
-    if (grid_at(&estar.grid, mousex, mousey)->flags & FLAG_OBSTACLE) {
+    cell_t * cell = grid_at(&estar.grid, mousex, mousey);
+    if (cell->flags & FLAG_GOAL) {
+      return TRUE;
+    }
+    if (cell->flags & FLAG_OBSTACLE) {
       drag = -1;
       change_obstacle (mousex, mousey, ODIST, 0);
     }
@@ -637,6 +641,10 @@ static gint cb_phi_motion(GtkWidget * ww,
   }
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
+    cell_t * cell = grid_at(&estar.grid, mousex, mousey);
+    if (cell->flags & FLAG_GOAL) {
+      return TRUE;
+    }
     if (drag == 1) {
       change_obstacle (mousex, mousey, ODIST, 0);
     }
