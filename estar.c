@@ -214,7 +214,7 @@ void estar_set_obound (estar_t * estar, double obound)
 
 void estar_update (estar_t * estar, cell_t * cell)
 {
-  if (cell->flags & FLAG_OBSTACLE || cell->flags & FLAG_GOAL) {
+  if (cell->flags & (FLAG_OBSTACLE | FLAG_GOAL)) {
     if (cell->pqi != 0) {
       pqueue_remove (&estar->pq, cell);
     }
@@ -222,15 +222,6 @@ void estar_update (estar_t * estar, cell_t * cell)
   }
   
   calc_rhs (cell, pqueue_topkey (&estar->pq));
-  
-  if (cell->rhs + estar->hfunc(cell) >= estar->obound) {
-    cell->flags |= FLAG_DBOUND;
-    if (cell->pqi != 0) {
-      pqueue_remove (&estar->pq, cell);
-    }
-    return;
-  }
-  cell->flags &= ~FLAG_DBOUND;
   
   if (cell->phi != cell->rhs) {
     if (cell->pqi == 0) {
@@ -251,10 +242,20 @@ void estar_propagate (estar_t * estar)
   cell_t * cell;
   cell_t ** nbor;
   
-  cell = pqueue_extract (&estar->pq);
-  if (NULL == cell) {
-    return;
-  }
+  do {
+    cell = pqueue_extract (&estar->pq);
+    if (NULL == cell) {
+      return;
+    }
+    if (cell->rhs + estar->hfunc(cell) >= estar->obound) {
+      cell->flags |= FLAG_DBOUND;
+      cell->phi = INFINITY;	/* not sure if this is needed */
+    }
+    else {
+      cell->flags &= ~FLAG_DBOUND;
+      break;
+    }
+  } while (1);
   
   // The chunk below could be placed into a function called expand,
   // but it is not needed anywhere else.
