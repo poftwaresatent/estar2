@@ -118,10 +118,19 @@ double pqueue_topkey (pqueue_t * pq)
 }
 
 
-void pqueue_insert (pqueue_t * pq, cell_t * cell)
+void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
 {
   size_t len;
   cell_t ** heap;
+  
+  if (0 != cell->pqi) {
+    cell->key = CALC_KEY(cell);
+    // could probably make it more efficient by only bubbling down when
+    // the bubble up did not change cell->pqi
+    bubble_up (pq->heap, cell->pqi);
+    bubble_down (pq->heap, pq->len, cell->pqi);
+    return;
+  }
   
   // grow heap, realloc if necessary
   
@@ -150,24 +159,19 @@ void pqueue_insert (pqueue_t * pq, cell_t * cell)
 }
 
 
-void pqueue_remove (pqueue_t * pq, cell_t * cell)
+void pqueue_remove_or_ignore (pqueue_t * pq, cell_t * cell)
 {
+  if (0 == cell->pqi) {
+    // This could be done by the caller for efficiency, but it is much
+    // more convenient to do it here.
+    return;
+  }
+  
   pq->heap[cell->pqi] = pq->heap[pq->len];
   pq->heap[cell->pqi]->pqi = cell->pqi; /* keep pqi consistent! */
   --pq->len;
   bubble_down (pq->heap, pq->len, cell->pqi);
   cell->pqi = 0;		/* mark cell as not on queue */
-}
-
-
-void pqueue_update (pqueue_t * pq, cell_t * cell)
-{
-  cell->key = CALC_KEY(cell);
-  
-  // could probably make it more efficient by only bubbling down when
-  // the bubble up did not change cell->pqi
-  bubble_up (pq->heap, cell->pqi);
-  bubble_down (pq->heap, pq->len, cell->pqi);
 }
 
 

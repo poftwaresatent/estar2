@@ -139,7 +139,7 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy)
   goal->rhs = 0.0;
   goal->flags |= FLAG_GOAL;
   goal->flags &= ~FLAG_OBSTACLE;
-  pqueue_insert (&estar->pq, goal);
+  pqueue_insert_or_update (&estar->pq, goal);
 }
 
 
@@ -150,10 +150,16 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   cell_t ** nbor;
 
   cell = grid_at (&estar->grid, ix, iy);
-  if (cell->flags & FLAG_GOAL) {
-    return;
-  }
-
+  
+  // XXXX I'm undecided yet whether this check here makes the most
+  // sense. The other option is to make sure that the caller doesn't
+  // place obstacles into a goal cell. The latter somehow makes more
+  // sense to me at the moment, so in gestar.c there is code to filter
+  // goal cells from the obstacle setting routines.
+  ////  if (cell->flags & FLAG_GOAL) {
+  ////    return;
+  ////  }
+  
   if (speed <= 0.0) {
     cost = INFINITY;
   }
@@ -183,25 +189,25 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 
 void estar_update (estar_t * estar, cell_t * cell)
 {
-  if (cell->flags & FLAG_OBSTACLE || cell->flags & FLAG_GOAL) {
-    if (cell->pqi != 0) {
-      pqueue_remove (&estar->pq, cell);
-    }
+  /* XXXX check whether obstacles actually can end up being
+     updated. Possibly due to effects of estar_set_speed? */
+  if (cell->flags & FLAG_OBSTACLE) {
+    pqueue_remove_or_ignore (&estar->pq, cell);
     return;
   }
   
-  calc_rhs (cell, pqueue_topkey (&estar->pq));
+  /* Make sure that goal cells remain at their rhs, which is supposed
+     to be fixed and only serve as source for propagation, never as
+     sink. */
+  if ( ! (cell->flags & FLAG_GOAL)) {
+    calc_rhs (cell, pqueue_topkey (&estar->pq));
+  }
   
   if (cell->phi != cell->rhs) {
-    if (cell->pqi == 0) {
-      pqueue_insert (&estar->pq, cell);
-    }
-    else {
-      pqueue_update (&estar->pq, cell);
-    }
+    pqueue_insert_or_update (&estar->pq, cell);
   }
-  else if (cell->pqi != 0) {
-    pqueue_remove (&estar->pq, cell);
+  else {
+    pqueue_remove_or_ignore (&estar->pq, cell);
   }
 }
 
