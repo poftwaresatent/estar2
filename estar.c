@@ -34,6 +34,11 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <err.h>
+
+
+static void estar_update (estar_t * estar, size_t elem);
 
 
 static double interpolate (double cost, double primary, double secondary)
@@ -56,19 +61,23 @@ static double interpolate (double cost, double primary, double secondary)
 }
 
 
-static void calc_rhs (cell_t * cell, double phimax)
+static void calc_rhs (estar_t * estar, size_t elem, double phimax)
 {
-  cell_t ** prop;
-  cell_t * primary;
-  cell_t * secondary;
+  size_t * prop;
+  size_t primary;
+  size_t secondary;
   double rr;
   
-  cell->rhs = INFINITY;
-  prop = cell->prop;
-  while (NULL != *prop) {
+  estar->rhs[elem] = INFINITY;
+  prop = estar->grid.cell[elem].prop;
+  while ((size_t) -1 != *prop) {
+    
+    // XXXX not sure why I coded this first check up using rhs. This
+    // should come after the two filters below, at which moment rhs
+    // and phi are known to be equal to each other anyway.
     
     primary = *(prop++);
-    if (primary->rhs <= (*prop)->rhs)  {
+    if (estar->rhs[primary] <= estar->rhs[*prop])  {
       secondary = *(prop++);
     }
     else {
@@ -78,51 +87,86 @@ static void calc_rhs (cell_t * cell, double phimax)
     
     // do not propagate from obstacles, queued cells, cells above the
     // wavefront, or cells at infinity
-    if (primary->flags & FLAG_OBSTACLE
-	|| primary->pqi != 0
-	|| primary->phi > phimax
-	|| isinf(primary->phi)) {
+    //
+    // XXXX how about DBOUND cells? The same goes for the secondary.
+    //
+    if (estar->flags[primary] & FLAG_OBSTACLE
+	|| estar->pq.pos[primary] != 0
+	|| estar->phi[primary] > phimax
+	|| isinf(estar->phi[primary])) {
       continue;
     }
     
     // the same goes from the secondary, but if that fails at least we
     // can fall back to the non-interpolated update equation.
-    if (secondary->flags & FLAG_OBSTACLE
-	|| secondary->pqi != 0
-	|| secondary->phi > phimax
-	|| isinf(secondary->phi)) {
-      rr = primary->rhs + cell->cost;
+    if (estar->flags[secondary] & FLAG_OBSTACLE
+	|| estar->pq.pos[secondary] != 0
+	|| estar->phi[secondary] > phimax
+	|| isinf(estar->phi[secondary])) {
+      rr = estar->rhs[primary] + estar->cost[elem];
     }
     else {
-      rr = interpolate (cell->cost, primary->phi, secondary->phi);
+      rr = interpolate (estar->cost[elem], estar->phi[primary], estar->phi[secondary]);
     }
     
-    if (rr < cell->rhs) {
-      cell->rhs = rr;
+    if (rr < estar->rhs[elem]) {
+      estar->rhs[elem] = rr;
     }
   }
   
-  if (isinf (cell->rhs)) {
+  if (isinf (estar->rhs[elem])) {
     // None of the above worked, we're probably done... but I have
     // lingering doubts about about the effects of in-place primary /
     // secondary sorting above, it could be imagined to create
     // situations where we overlook something. So, just to be on the
     // safe side, let's retry all non-interpolated options.
-    for (prop = cell->nbor; *prop != 0; ++prop) {
-      rr = (*prop)->phi;
-      if (rr < cell->rhs) {
-	cell->rhs = rr;
+
+#warning "THE SAME FILTERS AS ABOVE SHOULD BE IN PLACE HERE"
+
+#warning "and anyway this should not be necessary if the above is coded properly (do not swap before filtering, but after!)"
+
+    for (prop = estar->grid.cell[elem].prop; (size_t) -1 != *prop; ++prop) {
+      rr = estar->phi[*prop];
+      if (rr < estar->rhs[elem]) {
+	estar->rhs[elem] = rr;
       }
     }
-    cell->rhs += cell->cost;
+    estar->rhs[elem] += estar->cost[elem];
   }
 }
 
 
 void estar_init (estar_t * estar, size_t dimx, size_t dimy, hfunc_t hfunc)
 {
+  size_t ii;
+  
   grid_init (&estar->grid, dimx, dimy);
-  pqueue_init (&estar->pq, dimx + dimy);
+  pqueue_init (&estar->pq, dimx + dimy, estar->grid.nelem);
+  
+  estar->cost = malloc ((sizeof *estar->cost) * estar->grid.nelem);
+  if (NULL == estar->cost) {
+    errx (EXIT_FAILURE, __FILE__": %s: malloc cost", __func__);
+  }
+  estar->phi = malloc ((sizeof *estar->phi) * estar->grid.nelem);
+  if (NULL == estar->phi) {
+    errx (EXIT_FAILURE, __FILE__": %s: malloc phi", __func__);
+  }
+  estar->rhs = malloc ((sizeof *estar->rhs) * estar->grid.nelem);
+  if (NULL == estar->rhs) {
+    errx (EXIT_FAILURE, __FILE__": %s: malloc rhs", __func__);
+  }
+  estar->flags = malloc ((sizeof *estar->flags) * estar->grid.nelem);
+  if (NULL == estar->flags) {
+    errx (EXIT_FAILURE, __FILE__": %s: malloc flags", __func__);
+  }
+  
+  for (ii = 0; ii < estar->grid.nelem; ++ii) {
+    estar->cost[ii] = 1.0;
+    estar->phi[ii] = INFINITY;
+    estar->rhs[ii] = INFINITY;
+    estar->flags[ii] = 0;
+  }
+  
   estar->hfunc = hfunc;
   estar->obound = INFINITY;
 }
@@ -130,6 +174,10 @@ void estar_init (estar_t * estar, size_t dimx, size_t dimy, hfunc_t hfunc)
 
 void estar_fini (estar_t * estar)
 {
+  free(estar->flags);
+  free(estar->rhs);
+  free(estar->phi);
+  free(estar->cost);
   grid_fini (&estar->grid);
   pqueue_fini (&estar->pq);
 }
@@ -142,11 +190,11 @@ void estar_fini (estar_t * estar)
 // setting the goal should be redesigned anyway.
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound)
 {
-  cell_t * goal = grid_at (&estar->grid, ix, iy);
-  goal->rhs = 0.0;
-  goal->flags |= FLAG_GOAL;
-  goal->flags &= ~FLAG_OBSTACLE;
-  pqueue_insert_or_update (&estar->pq, goal);
+  size_t goal = grid_elem (&estar->grid, ix, iy);
+  estar->rhs[goal] = 0.0;
+  estar->flags[goal] |= FLAG_GOAL;
+  estar->flags[goal] &= ~FLAG_OBSTACLE;
+  pqueue_insert_or_update (&estar->pq, goal, 0.0);
   estar->obound = obound;
 }
 
@@ -154,10 +202,10 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound)
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 {
   double cost;
-  cell_t * cell;
-  cell_t ** nbor;
-
-  cell = grid_at (&estar->grid, ix, iy);
+  size_t elem;
+  size_t * nbor;
+  
+  elem = grid_elem (&estar->grid, ix, iy);
   
   // XXXX I'm undecided yet whether this check here makes the most
   // sense. The other option is to make sure that the caller doesn't
@@ -174,22 +222,22 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   else {
     cost = 1.0 / speed;
   }
-  if (cost == cell->cost) {
+  if (cost == estar->cost[elem]) {
     return;
   }
   
-  cell->cost = cost;
+  estar->cost[elem] = cost;
   if (speed <= 0.0) {
-    cell->phi = INFINITY;
-    cell->rhs = INFINITY;
-    cell->flags |= FLAG_OBSTACLE;
+    estar->phi[elem] = INFINITY;
+    estar->rhs[elem] = INFINITY;
+    estar->flags[elem] |= FLAG_OBSTACLE;
   }
   else {
-    cell->flags &= ~FLAG_OBSTACLE;
+    estar->flags[elem] &= ~FLAG_OBSTACLE;
   }
   
-  estar_update (estar, cell);
-  for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+  estar_update (estar, elem);
+  for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
     estar_update (estar, *nbor);
   }
 }
@@ -197,87 +245,95 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 
 void estar_set_obound (estar_t * estar, double obound)
 {
-  if (obound > estar->obound) {
-    // XXXX brute force for now, should have a separate heap for
-    // pruned cells to make this more efficient.
-    size_t ii, nn;
-    cell_t * cell;
-    nn = estar->grid.dimx * estar->grid.dimy;
-    cell = estar->grid.cell;
-    for (ii = 0; ii < nn; ++ii) {
-      if ((cell->flags & FLAG_DBOUND) && (cell->rhs + estar->hfunc(cell) < obound)) {
-	cell->flags &= ~FLAG_DBOUND;
-	cell->phi = INFINITY;
-	pqueue_insert_or_update (&estar->pq, cell);
-      }
-      ++cell;
-    }
-  }
+#warning "reimplement this with a separate priority queue"
+
+  /* if (obound > estar->obound) { */
+  /*   // XXXX brute force for now, should have a separate heap for */
+  /*   // pruned cells to make this more efficient. */
+  /*   size_t ii, nn; */
+  /*   cell_t * cell; */
+  /*   nn = estar->grid.dimx * estar->grid.dimy; */
+  /*   cell = estar->grid.cell; */
+  /*   for (ii = 0; ii < nn; ++ii) { */
+  /*     if ((cell->flags & FLAG_DBOUND) && (cell->rhs + estar->hfunc(cell) < obound)) { */
+  /* 	cell->flags &= ~FLAG_DBOUND; */
+  /* 	cell->phi = INFINITY; */
+  /* 	pqueue_insert_or_update (&estar->pq, cell); */
+  /*     } */
+  /*     ++cell; */
+  /*   } */
+  /* } */
   
   estar->obound = obound;
 }
 
 
-void estar_update (estar_t * estar, cell_t * cell)
+static void estar_update (estar_t * estar, size_t elem)
 {
-  /* XXXX check whether obstacles actually can end up being
-     updated. Possibly due to effects of estar_set_speed? */
-  if (cell->flags & FLAG_OBSTACLE) {
-    pqueue_remove_or_ignore (&estar->pq, cell);
+  if (estar->flags[elem] & FLAG_OBSTACLE) {
+    pqueue_remove_or_ignore (&estar->pq, elem);
     return;
   }
   
   /* Make sure that goal cells remain at their rhs, which is supposed
      to be fixed and only serve as source for propagation, never as
      sink. */
-  if ( ! (cell->flags & FLAG_GOAL)) {
-    calc_rhs (cell, pqueue_topkey (&estar->pq));
+  if ( ! (estar->flags[elem] & FLAG_GOAL)) {
+    calc_rhs (estar, elem, pqueue_topkey (&estar->pq));
   }
   
-  if (cell->phi != cell->rhs) {
-    pqueue_insert_or_update (&estar->pq, cell);
+  if (estar->phi[elem] != estar->rhs[elem]) {
+    if (estar->rhs[elem] < estar->phi[elem]) {
+      pqueue_insert_or_update (&estar->pq, elem, estar->rhs[elem]);
+    }
+    else {
+      pqueue_insert_or_update (&estar->pq, elem, estar->phi[elem]);
+    }
   }
   else {
-    pqueue_remove_or_ignore (&estar->pq, cell);
+    pqueue_remove_or_ignore (&estar->pq, elem);
   }
 }
 
 
 void estar_propagate (estar_t * estar)
 {
-  cell_t * cell;
-  cell_t ** nbor;
+  size_t elem;
+  size_t * nbor;
+  
+  //////////////////////////////////////////////////
+  // determine next element to expand
   
   do {
-    cell = pqueue_extract (&estar->pq);
-    if (NULL == cell) {
+    elem = pqueue_extract_or_what (&estar->pq);
+    if ((size_t) -1 == elem) {
       return;
     }
-    if (cell->rhs + estar->hfunc(cell) >= estar->obound) {
-      cell->flags |= FLAG_DBOUND;
-      cell->phi = INFINITY;	/* not sure if this is needed */
+    if (estar->rhs[elem] + estar->hfunc (elem) >= estar->obound) {
+      estar->flags[elem] |= FLAG_DBOUND;
+      estar->phi[elem] = INFINITY;	/* not sure if this is needed */
     }
     else {
-      cell->flags &= ~FLAG_DBOUND;
+      estar->flags[elem] &= ~FLAG_DBOUND;
       break;
     }
   } while (1);
   
-  // The chunk below could be placed into a function called expand,
-  // but it is not needed anywhere else.
+  //////////////////////////////////////////////////
+  // expand it
   
-  if (cell->phi > cell->rhs) {
-    cell->phi = cell->rhs;
-    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+  if (estar->phi[elem] > estar->rhs[elem]) {
+    estar->phi[elem] = estar->rhs[elem];
+    for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
       estar_update (estar, *nbor);
     }
   }
   else {
-    cell->phi = INFINITY;
-    for (nbor = cell->nbor; *nbor != 0; ++nbor) {
+    estar->phi[elem] = INFINITY;
+    for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
       estar_update (estar, *nbor);
     }
-    estar_update (estar, cell);
+    estar_update (estar, elem);
   }
 }
 
@@ -286,34 +342,34 @@ int estar_check (estar_t * estar, char const * pfx)
 {
   int status;
   size_t ii, jj, kk;
+  size_t elem;
   
   status = 0;
   
   for (ii = 0; ii < estar->grid.dimx; ++ii) {
     for (jj = 0; jj < estar->grid.dimy; ++jj) {
-      cell_t * cell;
-      cell = grid_at (&estar->grid, ii, jj);
+      elem = grid_elem (&estar->grid, ii, jj);
       
-      if (cell->rhs == cell->phi) {
+      if (estar->rhs[elem] == estar->phi[elem]) {
 	// consistent
-	if (0 != cell->pqi) {
+	if (0 != estar->pq.pos[elem]) {
 	  printf ("%sconsistent cell should not be on queue\n", pfx);
 	  status |= 1;
 	}
       }
       else {
 	// inconsistent
-	if ( (! (cell->flags | FLAG_DBOUND)) && 0 == cell->pqi) {
+	if ( (! (estar->flags[elem] | FLAG_DBOUND)) && 0 == estar->pq.pos[elem]) {
 	  printf ("%sinconsistent cell should be on queue\n", pfx);
 	  status |= 2;
 	}
       }
       
-      if (0 == cell->pqi) {
+      if (0 == estar->pq.pos[elem]) {
 	// not on queue
 	for (kk = 1; kk <= estar->pq.len; ++kk) {
-	  if (cell == estar->pq.heap[kk]) {
-	    printf ("%scell with pqi == 0 should not be on queue\n", pfx);
+	  if (elem == estar->pq.heap[kk]) {
+	    printf ("%scell with queue pos 0 should not be on queue\n", pfx);
 	    status |= 4;
 	    break;
 	  }
@@ -322,12 +378,12 @@ int estar_check (estar_t * estar, char const * pfx)
       else {
 	// on queue
 	for (kk = 1; kk <= estar->pq.len; ++kk) {
-	  if (cell == estar->pq.heap[kk]) {
+	  if (elem == estar->pq.heap[kk]) {
 	    break;
 	  }
 	}
 	if (kk > estar->pq.len) {
-	  printf ("%scell with pqi != 0 should be on queue\n", pfx);
+	  printf ("%scell with queue pos != 0 should be on queue\n", pfx);
 	  status |= 8;
 	}
       }
@@ -335,8 +391,9 @@ int estar_check (estar_t * estar, char const * pfx)
   }
   
   for (ii = 1; ii <= estar->pq.len; ++ii) {
-    if (estar->pq.heap[ii]->pqi != ii) {
-      printf ("%sinconsistent pqi %zu should be %zu\n", pfx, estar->pq.heap[ii]->pqi, ii);
+    if (estar->pq.pos[estar->pq.heap[ii]] != ii) {
+      printf ("%sinconsistent queue pos %zu should be %zu\n", pfx,
+	      estar->pq.pos[estar->pq.heap[ii]], ii);
       status |= 16;
       break;
     }
@@ -355,9 +412,11 @@ void estar_dump_queue (estar_t * estar, char const * pfx)
   for (ii = 1; ii <= estar->pq.len; ++ii) {
     printf ("%s[%zu %zu]  pqi:  %zu  key: %g  phi: %g  rhs: %g\n",
 	    pfx,
-	    (estar->pq.heap[ii] - estar->grid.cell) % estar->grid.dimx,
-	    (estar->pq.heap[ii] - estar->grid.cell) / estar->grid.dimx,
-	    estar->pq.heap[ii]->pqi, estar->pq.heap[ii]->key,
-	    estar->pq.heap[ii]->phi, estar->pq.heap[ii]->rhs);
+	    grid_ix (&estar->grid, estar->pq.heap[ii]),
+	    grid_iy (&estar->grid, estar->pq.heap[ii]),
+	    estar->pq.pos[estar->pq.heap[ii]],
+	    estar->pq.key[estar->pq.heap[ii]],
+	    estar->phi[estar->pq.heap[ii]],
+	    estar->rhs[estar->pq.heap[ii]]);
   }
 }
