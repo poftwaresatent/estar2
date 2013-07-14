@@ -49,6 +49,7 @@ void pqueue_init (pqueue_t * pq, size_t cap, size_t nelem);
 void pqueue_fini (pqueue_t * pq);
 
 #define pqueue_pos(pq,elem) (pq)->pos[(elem)]
+#define pqueue_empty(pq) (0 == (pq)->len)
 
 double pqueue_topkey (pqueue_t * pq);
 

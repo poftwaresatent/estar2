@@ -165,7 +165,7 @@ static void init ()
   estar_set_goal (&estar, GOALX, GOALY, obound);
   
   play = 0;
-  dbg = 0;
+  dbg = 1;
   mousex = -1;
   mousey = -1;
   drag = 0;
@@ -621,13 +621,29 @@ gint cb_phi_click (GtkWidget * ww,
     if (estar.flags[elem] & FLAG_OBSTACLE) {
       drag = -1;
       change_obstacle (mousex, mousey, ODIST, 0);
+      if (dbg) {
+	printf ("click: removed obstacle at %d %d\n", mousex, mousey);
+	estar_dump_queue (&estar, "  ");
+      }
     }
     else {
       drag = -2;
       change_obstacle (mousex, mousey, ODIST, 1);
+      if (dbg) {
+	printf ("click: added obstacle at %d %d\n", mousex, mousey);
+	estar_dump_queue (&estar, "  ");
+      }
     }
     ////    estar_set_obound (&estar, compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY));
     gtk_widget_queue_draw (w_phi);
+    
+    if (dbg) {
+      int status = estar_check (&estar, "+++ ");
+      if (0 != status) {
+	play = 0;
+	printf ("ERROR %d (see above)\n", status);
+      }
+    }
   }
   
   return TRUE;			// TRUE to stop event propagation

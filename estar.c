@@ -353,14 +353,14 @@ int estar_check (estar_t * estar, char const * pfx)
       if (estar->rhs[elem] == estar->phi[elem]) {
 	// consistent
 	if (0 != estar->pq.pos[elem]) {
-	  printf ("%sconsistent cell should not be on queue\n", pfx);
+	  printf ("%sconsistent cell [%4zu %4zu] should not be on queue\n", pfx, ii, jj);
 	  status |= 1;
 	}
       }
       else {
 	// inconsistent
 	if ( (! (estar->flags[elem] | FLAG_DBOUND)) && 0 == estar->pq.pos[elem]) {
-	  printf ("%sinconsistent cell should be on queue\n", pfx);
+	  printf ("%sinconsistent cell [%4zu %4zu] should be on queue\n", pfx, ii, jj);
 	  status |= 2;
 	}
       }
@@ -369,7 +369,7 @@ int estar_check (estar_t * estar, char const * pfx)
 	// not on queue
 	for (kk = 1; kk <= estar->pq.len; ++kk) {
 	  if (elem == estar->pq.heap[kk]) {
-	    printf ("%scell with queue pos 0 should not be on queue\n", pfx);
+	    printf ("%scell [%4zu %4zu] with queue pos 0 should not be on queue\n", pfx, ii, jj);
 	    status |= 4;
 	    break;
 	  }
@@ -383,7 +383,8 @@ int estar_check (estar_t * estar, char const * pfx)
 	  }
 	}
 	if (kk > estar->pq.len) {
-	  printf ("%scell with queue pos != 0 should be on queue\n", pfx);
+	  printf ("%scell [%4zu %4zu] with queue pos %4zu should be on queue\n", pfx,
+		  ii, jj, estar->pq.pos[elem]);
 	  status |= 8;
 	}
       }
@@ -392,8 +393,12 @@ int estar_check (estar_t * estar, char const * pfx)
   
   for (ii = 1; ii <= estar->pq.len; ++ii) {
     if (estar->pq.pos[estar->pq.heap[ii]] != ii) {
-      printf ("%sinconsistent queue pos %zu should be %zu\n", pfx,
-	      estar->pq.pos[estar->pq.heap[ii]], ii);
+      printf ("%sinconsistent cell [%4zu %4zu] with queue pos %zu should have queue pos %zu\n",
+	      pfx,
+	      grid_ix (&estar->grid, estar->pq.heap[ii]),
+	      grid_iy (&estar->grid, estar->pq.heap[ii]),
+	      estar->pq.pos[estar->pq.heap[ii]],
+	      ii);
       status |= 16;
       break;
     }
@@ -410,7 +415,7 @@ void estar_dump_queue (estar_t * estar, char const * pfx)
 {
   size_t ii;
   for (ii = 1; ii <= estar->pq.len; ++ii) {
-    printf ("%s[%zu %zu]  pqi:  %zu  key: %g  phi: %g  rhs: %g\n",
+    printf ("%s[%3zu %3zu]  pos:  %3zu  key: %g  phi: %g  rhs: %g\n",
 	    pfx,
 	    grid_ix (&estar->grid, estar->pq.heap[ii]),
 	    grid_iy (&estar->grid, estar->pq.heap[ii]),

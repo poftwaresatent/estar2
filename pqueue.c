@@ -38,9 +38,6 @@
 #include <math.h>
 
 
-////#define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
-
-
 static void bubble_up (size_t * heap, double * key, size_t * pos, size_t index)
 {
   size_t tmp;
@@ -140,8 +137,7 @@ void pqueue_insert_or_update (pqueue_t * pq, size_t elem, double key)
   size_t * heap;
   
   if (0 != pq->pos[elem]) {
-    // Could possibly make it more efficient by only bubbling down
-    // when the bubble up did not change the position in the heap.
+    // Update an element that is already on the queue.
     pq->key[elem] = key;
     bubble_up (pq->heap, pq->key, pq->pos, pq->pos[elem]);
     // Note that pos[elem] may have been changed by bubble_up.
@@ -178,19 +174,20 @@ void pqueue_insert_or_update (pqueue_t * pq, size_t elem, double key)
 
 void pqueue_remove_or_ignore (pqueue_t * pq, size_t elem)
 {
-  size_t pos;
+  size_t pos, repl;
+  
   pos = pq->pos[elem];
   if (0 == pos) {
-    // This could be done by the caller for efficiency, but it is much
-    // more convenient to do it here.
+    // The element is not on the queue, so it can be ignored.
     return;
   }
   
-  pq->heap[pos] = pq->heap[pq->len];
-  pq->pos[pos] = pos;		/* keep pos consistent! */
+  repl = pq->heap[pq->len];
+  pq->heap[pos] = repl;
+  pq->pos[repl] = pos;
+  pq->pos[elem] = 0;
   --pq->len;
   bubble_down (pq->heap, pq->len, pq->key, pq->pos, pos);
-  pq->pos[elem] = 0;		/* mark elem as not on queue */
 }
 
 
