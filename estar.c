@@ -264,7 +264,7 @@ void estar_set_obound (estar_t * estar, double obound)
   /*   } */
   /* } */
   
-  estar->obound = obound;
+  /* estar->obound = obound; */
 }
 
 
@@ -309,14 +309,15 @@ void estar_propagate (estar_t * estar)
     if ((size_t) -1 == elem) {
       return;
     }
-    if (estar->rhs[elem] + estar->hfunc (elem) >= estar->obound) {
-      estar->flags[elem] |= FLAG_DBOUND;
-      estar->phi[elem] = INFINITY;	/* not sure if this is needed */
-    }
-    else {
+#warning "reconsider this whole upper bound business"
+    /* if (estar->rhs[elem] + estar->hfunc (elem) >= estar->obound) { */
+    /*   estar->flags[elem] |= FLAG_DBOUND; */
+    /*   estar->phi[elem] = INFINITY;	/\* not sure if this is needed *\/ */
+    /* } */
+    /* else { */
       estar->flags[elem] &= ~FLAG_DBOUND;
       break;
-    }
+    /* } */
   } while (1);
   
   //////////////////////////////////////////////////
