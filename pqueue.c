@@ -199,7 +199,7 @@ size_t pqueue_extract_or_what (pqueue_t * pq)
   size_t elem;
   
   if (0 == pq->len) {
-    return NOELEM;
+    return (size_t) -1;
   }
   
   elem = pq->heap[1];

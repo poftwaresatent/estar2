@@ -48,13 +48,12 @@ typedef struct {
 void pqueue_init (pqueue_t * pq, size_t cap, size_t nelem);
 void pqueue_fini (pqueue_t * pq);
 
+#define pqueue_pos(pq,elem) (pq)->pos[(elem)]
+
 double pqueue_topkey (pqueue_t * pq);
 
 void pqueue_insert_or_update (pqueue_t * pq, size_t id, double key);
 void pqueue_remove_or_ignore (pqueue_t * pq, size_t id);
-
-
-#define NOELEM ((size_t) -1)
 
 size_t pqueue_extract_or_what (pqueue_t * pq);
 

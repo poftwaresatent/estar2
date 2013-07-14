@@ -44,7 +44,7 @@ static int check (pqueue_t * pq, double * key, size_t len)
   
   for (ii = 0; ii < len; ++ii) {
     elem = pqueue_extract_or_what (pq);
-    if (NOELEM == elem) {
+    if ((size_t) -1 == elem) {
       printf ("  ERROR queue empty at ii = %zu\n", ii);
       return 1;
     }
@@ -59,7 +59,7 @@ static int check (pqueue_t * pq, double * key, size_t len)
   }
   
   elem = pqueue_extract_or_what (pq);
-  if (NOELEM != elem) {
+  if ((size_t) -1 != elem) {
     printf ("  ERROR queue should be empty after %zu extractions\n", len);
     return 4;
   }
