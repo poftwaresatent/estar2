@@ -50,4 +50,6 @@ void grid_fini (grid_t * grid);
 #define grid_ix(grid,elem) ((elem) % (grid)->dimx)
 #define grid_iy(grid,elem) ((elem) / (grid)->dimx)
 
+int grid_calc_gradient (grid_t * grid, double * phi, size_t elem, double * gx, double * gy);
+
 #endif

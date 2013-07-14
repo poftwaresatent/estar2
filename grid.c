@@ -114,3 +114,99 @@ void grid_fini (grid_t * grid)
 /*   printf ("%s[%3zu  %3zu]  k: %4g  r: %4g  p: %4g\n", */
 /* 	  pfx, ix, iy, cell->key, cell->rhs, cell->phi); */
 /* } */
+
+
+int grid_calc_gradient (grid_t * grid, double * phi, size_t elem, double * gx, double * gy)
+{
+  size_t n1, n2;
+  size_t * nn;
+  ssize_t direction; /* either +/- 1 or +/- dimx, used to distinguish N-S from E-W */
+  
+  //////////////////////////////////////////////////
+  // find lowest upwind neighbor
+  
+  n1 = (size_t) -1;
+  for (nn = grid->cell[elem].nbor; (size_t) -1 != *nn; ++nn) {
+    if ((size_t) -1 == n1 || phi[*nn] < phi[n1]) {
+      n1 = *nn;
+    }
+  }
+  if ((size_t) -1 == n1 || phi[elem] <= phi[n1]) {
+    return 0;
+  }
+  
+  //////////////////////////////////////////////////
+  // find second-lowest upwind neighbor on different axis than the first one
+  
+  direction = (ssize_t) n1 - (ssize_t) elem;
+  n2 = (size_t) -1;
+  for (nn = grid->cell[elem].nbor; (size_t) -1 != *nn; ++nn) {
+    if ((*nn) != n1
+	&& direction != (ssize_t) elem - (ssize_t) *nn
+	&& ((size_t) -1 == n2 || phi[*nn] < phi[n2])) {
+      n2 = *nn;
+    }
+  }
+  
+  //////////////////////////////////////////////////
+  // compute gradient based on first and possibly second neighbor
+  
+  if ((size_t) -1 == n2) {
+    if (direction == -1) {
+      *gx = phi[n1] - phi[elem];
+      *gy = 0.0;
+    }
+    else if (direction == 1) {
+      *gx = phi[elem] - phi[n1];
+      *gy = 0.0;
+    }
+    else if (direction < 0) {
+      *gx = 0.0;
+      *gy = phi[n1] - phi[elem];
+    }
+    else {
+      *gx = 0.0;
+      *gy = phi[elem] - phi[n1];
+    }
+    return 1;
+  }
+  
+  if (direction == -1) {
+    *gx = phi[n1] - phi[elem];
+    if (elem > n2) {
+      *gy = phi[n2] - phi[elem];
+    }
+    else {
+      *gy = phi[elem] - phi[n2];
+    }
+  }
+  else if (direction == 1) {
+    *gx = phi[elem] - phi[n1];
+    if (elem < n2) {
+      *gy = phi[n2] - phi[elem];
+    }
+    else {
+      *gy = phi[elem] - phi[n2];
+    }
+  }
+  else if (direction < 0) {
+    if (elem > n2) {
+      *gx = phi[n2] - phi[elem];
+    }
+    else {
+      *gx = phi[elem] - phi[n2];
+    }
+    *gy = phi[n1] - phi[elem];
+  }
+  else {
+    if (elem < n2) {
+      *gx = phi[n2] - phi[elem];
+    }
+    else {
+      *gx = phi[elem] - phi[n2];
+    }
+    *gy = phi[elem] - phi[n1];
+  }
+  
+  return 2;
+}

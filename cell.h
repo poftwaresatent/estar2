@@ -37,17 +37,8 @@
 
 
 typedef struct cell_s {
-  double cost;			/* set this to 1/speed for "sensible" values */
-  double phi;
-  double rhs;
-  double key;			/* managed by pqueue */
-  size_t pqi;			/* managed by pqueue */
-  int flags;
-  struct cell_s * nbor[5];	/* null-terminated array of neighbors */
-  struct cell_s * prop[9];	/* null-terminated array of pairwise propagators */
+  size_t nbor[5];		  /* neighbor element, terminated by (size_t) -1 */
+  size_t prop[9];		  /* pairs of propagators, terminated by (size_t) -1 */
 } cell_t;
-
-
-int cell_calc_gradient (cell_t * cell, double * gx, double * gy);
 
 #endif
