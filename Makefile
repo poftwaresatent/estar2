@@ -3,7 +3,7 @@ CC = gcc
 CFLAGS = -Wall -O0 -g -pipe
 
 HDRS= pqueue.h grid.h estar.h cell.h
-SRCS= pqueue.c grid.c estar.c cell.c
+SRCS= pqueue.c grid.c estar.c
 OBJS= $(SRCS:.c=.o)
 
 all: gestar test-pqueue test-drag
