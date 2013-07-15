@@ -44,7 +44,7 @@ enum {
 };
 
 
-typedef double (*hfunc_t)(size_t);
+typedef double (*dstar_hfunc_t)(size_t);
 
 typedef struct {
   double * cost;
@@ -53,15 +53,15 @@ typedef struct {
   int * flags;
   grid_t grid;
   pqueue_t pq;
-  hfunc_t hfunc;
+  dstar_hfunc_t hfunc;
 } dstar_t;
 
 
-void dstar_init (dstar_t * dstar, size_t dimx, size_t dimy, hfunc_t hfunc);
+void dstar_init (dstar_t * dstar, size_t dimx, size_t dimy, dstar_hfunc_t hfunc);
 void dstar_fini (dstar_t * dstar);
 void dstar_set_goal (dstar_t * dstar, size_t ix, size_t iy);
 void dstar_set_speed (dstar_t * dstar, size_t ix, size_t iy, double speed);
 void dstar_propagate (dstar_t * dstar);
-void dstar_propagate_to (dstar_t * dstar, size_t sx, size_t sy);
+int dstar_compute_path (dstar_t * dstar, size_t sx, size_t sy);
 
 #endif

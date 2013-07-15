@@ -31,6 +31,7 @@
  */
 
 #include "estar.h"
+#include "dstar.h"
 
 #include <gtk/gtk.h>
 #include <err.h>
@@ -49,6 +50,7 @@
 
 
 static estar_t estar;
+static dstar_t dstar;
 
 static GtkWidget * w_phi;
 static gint w_phi_width, w_phi_height;
@@ -58,10 +60,12 @@ static int play, dbg, mousex, mousey, drag;
 
 static void fini ()
 {
+  dstar_fini (&dstar);
   estar_fini (&estar);
 }
 
 
+// Strictly speaking, there should be two of these, one for estar and one for dstar.
 static double hfunc (size_t elem)
 {
   double dx = grid_ix (&estar.grid, elem) - (double) STARTX;
@@ -70,89 +74,13 @@ static double hfunc (size_t elem)
 }
 
 
-/* static double compute_obound (grid_t * grid, */
-/* 			      size_t goalx, size_t goaly, */
-/* 			      size_t startx, size_t starty) */
-/* { */
-/*   grid_t tmpgrid; */
-/*   pqueue_t tmpq; */
-/*   cell_t * tmpgoal; */
-/*   cell_t * tmpstart; */
-/*   cell_t * tmpcell; */
-/*   cell_t * ocell; */
-/*   double obound; */
-/*   cell_t ** nbor; */
-/*   size_t ii, jj; */
-  
-/*   grid_init (&tmpgrid, grid->dimx, grid->dimy); */
-/*   pqueue_init (&tmpq, grid->dimx + grid->dimy); */
-  
-/*   tmpcell = tmpgrid.cell; */
-/*   ocell = grid->cell; */
-/*   for (ii = 0; ii < DIMX; ++ii) { */
-/*     for (jj = 0; jj < DIMY; ++jj) { */
-/*       tmpcell->cost = ocell->cost; */
-/*       if (ocell->flags & FLAG_OBSTACLE) { */
-/* 	tmpcell->flags |= FLAG_OBSTACLE; */
-/*       } */
-/*       ++tmpcell; */
-/*       ++ocell; */
-/*     } */
-/*   } */
-  
-/*   tmpgoal = grid_at (&tmpgrid, goalx, goaly); */
-/*   tmpgoal->phi = 0.0; */
-/*   tmpgoal->flags |= FLAG_GOAL; */
-/*   tmpgoal->flags &= ~FLAG_OBSTACLE; */
-/*   pqueue_insert_or_update (&tmpq, tmpgoal); */
-  
-/*   tmpstart = grid_at (&tmpgrid, startx, starty); */
-/*   do { */
-/*     tmpcell  = pqueue_extract (&tmpq); */
-/*     if (tmpstart == tmpcell || NULL == tmpcell) { */
-/*       break; */
-/*     } */
-/*     for (nbor = tmpcell->nbor; *nbor != 0; ++nbor) { */
-/*       if (tmpcell->flags & FLAG_OBSTACLE) { */
-/* 	continue; */
-/*       } */
-/*       if (isinf((*nbor)->phi)) { */
-/* 	(*nbor)->phi = tmpcell->phi + (*nbor)->cost; */
-/* 	pqueue_insert_or_update (&tmpq, *nbor); */
-/*       } */
-/*     } */
-/*   } while (1); */
-  
-/*   if (NULL == tmpcell) { */
-/*     obound = INFINITY; */
-/*   } */
-/*   else { */
-/*     obound = tmpstart->phi; */
-/*     do { */
-/*       tmpcell->flags |= FLAG_BOUNDPATH; */
-/*       for (nbor = tmpcell->nbor; *nbor != 0; ++nbor) { */
-/* 	if ((*nbor)->phi < tmpcell->phi) { */
-/* 	  tmpcell = *nbor; */
-/* 	} */
-/*       } */
-/*     } while (tmpcell != tmpgoal); */
-/*   } */
-  
-/*   for (ii = 0; ii < DIMX; ++ii) { */
-/*     for (jj = 0; jj < DIMY; ++jj) { */
-/*       if (grid_at (&tmpgrid, ii, jj) ->flags & FLAG_BOUNDPATH) { */
-/* 	grid_at (grid, ii, jj) ->flags |= FLAG_BOUNDPATH; */
-/*       } */
-/*       else { */
-/* 	grid_at (grid, ii, jj) ->flags &= ~FLAG_BOUNDPATH; */
-/*       } */
-/*     } */
-/*   } */
-  
-/*   pqueue_fini (&tmpq); */
-/*   grid_fini (&tmpgrid); */
-/*   return obound; */
-/* } */
+static double compute_obound ()
+{
+  if (-1 == dstar_compute_path (&dstar, STARTX, STARTY)) {
+    return INFINITY;
+  }
+  return dstar.phi[grid_elem (&dstar.grid, STARTX, STARTY)];
+}
 
 
 static void init ()
@@ -160,8 +88,12 @@ static void init ()
   double obound;
   
   estar_init (&estar, DIMX, DIMY, hfunc);
-  ////  obound = compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY);
+  dstar_init (&dstar, DIMX, DIMY, hfunc);
+  
+  dstar_set_goal (&dstar, GOALX, GOALY);
+  ////  obound = compute_obound ();
   obound = INFINITY;
+  
   estar_set_goal (&estar, GOALX, GOALY, obound);
   
   play = 0;
@@ -292,7 +224,7 @@ gint cb_phi_expose (GtkWidget * ww,
     for (jj = 0; jj < DIMY; ++jj) {
       elem = grid_elem (&estar.grid, ii, jj);
       
-      if (estar.flags[elem] & FLAG_OBSTACLE) {
+      if (estar.flags[elem] & ESTAR_FLAG_OBSTACLE) {
 	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
       }
       else {
@@ -338,7 +270,7 @@ gint cb_phi_expose (GtkWidget * ww,
       if (ii == STARTX && jj == STARTY) { /* start */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
-      else if (estar.flags[elem] & FLAG_GOAL) { /* goal */
+      else if (estar.flags[elem] & ESTAR_FLAG_GOAL) { /* goal */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
       else if (0 != pqueue_pos (&estar.pq, elem)) { /* on queue */
@@ -366,7 +298,7 @@ gint cb_phi_expose (GtkWidget * ww,
     for (jj = 0; jj < DIMY; ++jj) {
       elem = grid_elem (&estar.grid, ii, jj);
       
-      if (estar.flags[elem] & FLAG_BOUNDPATH) {
+      if (dstar.flags[elem] & DSTAR_FLAG_PATH) {
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.5);
 	cairo_arc (cr,
 		   w_phi_x0 + (ii+0.5) * w_phi_sx,
@@ -394,7 +326,7 @@ gint cb_phi_expose (GtkWidget * ww,
 	cairo_stroke (cr);
       }
       
-      if (estar.flags[elem] & FLAG_OBSTACLE) {
+      if (estar.flags[elem] & ESTAR_FLAG_OBSTACLE) {
 	cairo_set_source_rgb (cr, 1.0, 0.5, 1.0);
 	cairo_arc (cr,
 		   w_phi_x0 + (ii+0.5) * w_phi_sx,
@@ -449,7 +381,7 @@ gint cb_phi_expose (GtkWidget * ww,
 	break;
       }
       elem = grid_elem (&estar.grid, ix, iy);
-      if (estar.flags[elem] & FLAG_GOAL) {
+      if (estar.flags[elem] & ESTAR_FLAG_GOAL) {
 	break;
       }
 
@@ -552,7 +484,7 @@ static void change_obstacle (int cx, int cy, int dist, int add)
 	continue;
       }
       if ((0 != add && ix == cx && iy == cy)
-	  || (estar.flags[grid_elem (&estar.grid, ix, iy)] & FLAG_OBSTACLE))
+	  || (estar.flags[grid_elem (&estar.grid, ix, iy)] & ESTAR_FLAG_OBSTACLE))
 	{
 	  ptr = md2;
 	  for (jx = x0; jx < x1; ++jx) {
@@ -575,6 +507,7 @@ static void change_obstacle (int cx, int cy, int dist, int add)
     for (ix = x0; ix < x1; ++ix) {
       for (iy = y0; iy < y1; ++iy) {
 	estar_set_speed (&estar, ix, iy, 1.0);
+	dstar_set_speed (&dstar, ix, iy, 1.0);
       }
     }
   }
@@ -585,12 +518,15 @@ static void change_obstacle (int cx, int cy, int dist, int add)
 	d2 = sqrt(*(ptr++)) - 0.5;
 	if (d2 < 0) {
 	  estar_set_speed (&estar, ix, iy, 0.0);
+	  dstar_set_speed (&dstar, ix, iy, 0.0);
 	}
 	else if (d2 >= dist) {
 	  estar_set_speed (&estar, ix, iy, 1.0);
+	  dstar_set_speed (&dstar, ix, iy, 1.0);
 	}
 	else {
 	  estar_set_speed (&estar, ix, iy, d2 / dist);
+	  dstar_set_speed (&dstar, ix, iy, d2 / dist);
 	}
       }
     }
@@ -615,10 +551,10 @@ gint cb_phi_click (GtkWidget * ww,
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
     elem = grid_elem (&estar.grid, mousex, mousey);
-    if (estar.flags[elem] & FLAG_GOAL) {
+    if (estar.flags[elem] & ESTAR_FLAG_GOAL) {
       return TRUE;
     }
-    if (estar.flags[elem] & FLAG_OBSTACLE) {
+    if (estar.flags[elem] & ESTAR_FLAG_OBSTACLE) {
       drag = -1;
       change_obstacle (mousex, mousey, ODIST, 0);
       if (dbg) {
@@ -673,7 +609,7 @@ static gint cb_phi_motion(GtkWidget * ww,
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
     elem = grid_elem (&estar.grid, mousex, mousey);
-    if (estar.flags[elem] & FLAG_GOAL) {
+    if (estar.flags[elem] & ESTAR_FLAG_GOAL) {
       return TRUE;
     }
     if (drag == 1) {

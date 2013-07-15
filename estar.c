@@ -64,71 +64,72 @@ static double interpolate (double cost, double primary, double secondary)
 static void calc_rhs (estar_t * estar, size_t elem, double phimax)
 {
   size_t * prop;
-  size_t primary;
-  size_t secondary;
+  size_t primary, secondary;
   double rr;
   
   estar->rhs[elem] = INFINITY;
+  
+  //////////////////////////////////////////////////
+  // First try all the true interpolations. If all of those fail, a
+  // fallback solution is computed after this big while loop.
+  
   prop = estar->grid.cell[elem].prop;
   while ((size_t) -1 != *prop) {
     
-    // XXXX not sure why I coded this first check up using rhs. This
-    // should come after the two filters below, at which moment rhs
-    // and phi are known to be equal to each other anyway.
-    
     primary = *(prop++);
-    if (estar->rhs[primary] <= estar->rhs[*prop])  {
-      secondary = *(prop++);
-    }
-    else {
-      secondary = primary;
-      primary = *(prop++);
-    }
+    secondary = *(prop++);
     
-    // do not propagate from obstacles, queued cells, cells above the
-    // wavefront, or cells at infinity
+    //////////////////////////////////////////////////
+    // Filter both the primary and the secondary: do not propagate
+    // from obstacles, queued cells, cells above the wavefront, or
+    // cells at infinity.
     //
-    // XXXX how about DBOUND cells? The same goes for the secondary.
-    //
-    if (estar->flags[primary] & FLAG_OBSTACLE
+    // XXXX how about DBOUND cells?
+    
+    if (estar->flags[primary] & ESTAR_FLAG_OBSTACLE
 	|| estar->pq.pos[primary] != 0
 	|| estar->phi[primary] > phimax
 	|| isinf(estar->phi[primary])) {
       continue;
     }
     
-    // the same goes from the secondary, but if that fails at least we
-    // can fall back to the non-interpolated update equation.
-    if (estar->flags[secondary] & FLAG_OBSTACLE
+    if (estar->flags[secondary] & ESTAR_FLAG_OBSTACLE
 	|| estar->pq.pos[secondary] != 0
 	|| estar->phi[secondary] > phimax
 	|| isinf(estar->phi[secondary])) {
-      rr = estar->rhs[primary] + estar->cost[elem];
+      continue;
+    }
+    
+    //////////////////////////////////////////////////
+    // Make sure that the primary lies below the secondary,
+    // interpolate between them, and track the mimimum result.
+    
+    if (estar->phi[primary] < estar->phi[secondary]) {
+      rr = interpolate (estar->cost[elem], estar->phi[primary], estar->phi[secondary]);
     }
     else {
-      rr = interpolate (estar->cost[elem], estar->phi[primary], estar->phi[secondary]);
+      rr = interpolate (estar->cost[elem], estar->phi[secondary], estar->phi[primary]);
     }
     
     if (rr < estar->rhs[elem]) {
       estar->rhs[elem] = rr;
     }
   }
+
+  //////////////////////////////////////////////////
+  // If none of the above worked, try the fallback solution (without
+  // interpolation).
   
   if (isinf (estar->rhs[elem])) {
-    // None of the above worked, we're probably done... but I have
-    // lingering doubts about about the effects of in-place primary /
-    // secondary sorting above, it could be imagined to create
-    // situations where we overlook something. So, just to be on the
-    // safe side, let's retry all non-interpolated options.
-
-#warning "THE SAME FILTERS AS ABOVE SHOULD BE IN PLACE HERE"
-
-#warning "and anyway this should not be necessary if the above is coded properly (do not swap before filtering, but after!)"
-
     for (prop = estar->grid.cell[elem].prop; (size_t) -1 != *prop; ++prop) {
-      rr = estar->phi[*prop];
-      if (rr < estar->rhs[elem]) {
-	estar->rhs[elem] = rr;
+      if (estar->flags[*prop] & ESTAR_FLAG_OBSTACLE
+	  || estar->pq.pos[*prop] != 0
+	  || estar->phi[*prop] > phimax
+	  || isinf(estar->phi[*prop])) {
+	continue;
+      }
+      if (estar->phi[*prop] < estar->rhs[elem]) {
+	estar->rhs[elem] = estar->phi[*prop];
       }
     }
     estar->rhs[elem] += estar->cost[elem];
@@ -136,7 +137,7 @@ static void calc_rhs (estar_t * estar, size_t elem, double phimax)
 }
 
 
-void estar_init (estar_t * estar, size_t dimx, size_t dimy, hfunc_t hfunc)
+void estar_init (estar_t * estar, size_t dimx, size_t dimy, estar_hfunc_t hfunc)
 {
   size_t ii;
   
@@ -192,8 +193,8 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound)
 {
   size_t goal = grid_elem (&estar->grid, ix, iy);
   estar->rhs[goal] = 0.0;
-  estar->flags[goal] |= FLAG_GOAL;
-  estar->flags[goal] &= ~FLAG_OBSTACLE;
+  estar->flags[goal] |= ESTAR_FLAG_GOAL;
+  estar->flags[goal] &= ~ESTAR_FLAG_OBSTACLE;
   pqueue_insert_or_update (&estar->pq, goal, 0.0);
   estar->obound = obound;
 }
@@ -212,7 +213,7 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   // place obstacles into a goal cell. The latter somehow makes more
   // sense to me at the moment, so in gestar.c there is code to filter
   // goal cells from the obstacle setting routines.
-  ////  if (cell->flags & FLAG_GOAL) {
+  ////  if (cell->flags & ESTAR_FLAG_GOAL) {
   ////    return;
   ////  }
   
@@ -230,10 +231,10 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   if (speed <= 0.0) {
     estar->phi[elem] = INFINITY;
     estar->rhs[elem] = INFINITY;
-    estar->flags[elem] |= FLAG_OBSTACLE;
+    estar->flags[elem] |= ESTAR_FLAG_OBSTACLE;
   }
   else {
-    estar->flags[elem] &= ~FLAG_OBSTACLE;
+    estar->flags[elem] &= ~ESTAR_FLAG_OBSTACLE;
   }
   
   estar_update (estar, elem);
@@ -270,7 +271,7 @@ void estar_set_obound (estar_t * estar, double obound)
 
 static void estar_update (estar_t * estar, size_t elem)
 {
-  if (estar->flags[elem] & FLAG_OBSTACLE) {
+  if (estar->flags[elem] & ESTAR_FLAG_OBSTACLE) {
     pqueue_remove_or_ignore (&estar->pq, elem);
     return;
   }
@@ -278,7 +279,7 @@ static void estar_update (estar_t * estar, size_t elem)
   /* Make sure that goal cells remain at their rhs, which is supposed
      to be fixed and only serve as source for propagation, never as
      sink. */
-  if ( ! (estar->flags[elem] & FLAG_GOAL)) {
+  if ( ! (estar->flags[elem] & ESTAR_FLAG_GOAL)) {
     calc_rhs (estar, elem, pqueue_topkey (&estar->pq));
   }
   

@@ -60,7 +60,7 @@ static void calc_rhs (dstar_t * dstar, size_t elem, double phimax)
 }
 
 
-void dstar_init (dstar_t * dstar, size_t dimx, size_t dimy, hfunc_t hfunc)
+void dstar_init (dstar_t * dstar, size_t dimx, size_t dimy, dstar_hfunc_t hfunc)
 {
   size_t ii;
   
@@ -210,7 +210,7 @@ void dstar_propagate (dstar_t * dstar)
 }
 
 
-int dstar_copmute_path (dstar_t * dstar, size_t sx, size_t sy)
+int dstar_compute_path (dstar_t * dstar, size_t sx, size_t sy)
 {
   size_t start, elem;
   size_t * nbor;

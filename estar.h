@@ -30,22 +30,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ESTAR_MINI2D_ESTAR_H
-#define ESTAR_MINI2D_ESTAR_H
+#ifndef ESTAR2_ESTAR_H
+#define ESTAR2_ESTAR_H
 
 #include "grid.h"
 #include "pqueue.h"
 
 
 enum {
-  FLAG_GOAL      = 1,
-  FLAG_OBSTACLE  = 2,
-  FLAG_DBOUND    = 4,
-  FLAG_BOUNDPATH = 8
+  ESTAR_FLAG_GOAL      = 1,
+  ESTAR_FLAG_OBSTACLE  = 2,
+  FLAG_DBOUND = 4		/* XXXX to be removed */
 };
 
 
-typedef double (*hfunc_t)(size_t);
+typedef double (*estar_hfunc_t)(size_t);
 
 typedef struct {
   double * cost;
@@ -54,12 +53,12 @@ typedef struct {
   int * flags;
   grid_t grid;
   pqueue_t pq;
-  hfunc_t hfunc;
+  estar_hfunc_t hfunc;
   double obound;
 } estar_t;
 
 
-void estar_init (estar_t * estar, size_t dimx, size_t dimy, hfunc_t hfunc);
+void estar_init (estar_t * estar, size_t dimx, size_t dimy, estar_hfunc_t hfunc);
 void estar_fini (estar_t * estar);
 
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound);

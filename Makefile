@@ -2,8 +2,8 @@ CC = gcc
 #CFLAGS = -Wall -O2 -pipe
 CFLAGS = -Wall -O0 -g -pipe
 
-HDRS= pqueue.h grid.h estar.h cell.h
-SRCS= pqueue.c grid.c estar.c
+HDRS= pqueue.h grid.h estar.h dstar.h cell.h
+SRCS= pqueue.c grid.c estar.c dstar.c
 OBJS= $(SRCS:.c=.o)
 
 all: gestar test-pqueue test-drag
@@ -20,6 +20,7 @@ test-pqueue: test-pqueue.c pqueue.o Makefile
 pqueue.o: $(HDRS) pqueue.c Makefile
 grid.o: $(HDRS) grid.c Makefile
 estar.o: $(HDRS) estar.c Makefile
+dstar.o: $(HDRS) dstar.c Makefile
 
 clean:
 	rm -rf *~ *.o *.dSYM gestar test-drag test-pqueue
