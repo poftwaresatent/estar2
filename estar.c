@@ -274,14 +274,19 @@ void estar_propagate (estar_t * estar)
 {
   size_t elem;
   size_t * nbor;
+  double hval;
   
   //////////////////////////////////////////////////
   // determine next element to expand
   
   if (pqueue_topkey (&estar->pruned) < estar->ubound) {
+    printf ("estar_propagate: resurrect pruned element %g < %g\n",
+	    pqueue_topkey (&estar->pruned), estar->ubound);
     elem = pqueue_extract_or_what (&estar->pruned);
   }
   else {
+    printf ("estar_propagate: normal queue processing (%g >= %g)\n",
+	    pqueue_topkey (&estar->pruned), estar->ubound);
     elem = pqueue_extract_or_what (&estar->pq);
   }
   if ((size_t) -1 == elem) {
@@ -291,20 +296,27 @@ void estar_propagate (estar_t * estar)
   //////////////////////////////////////////////////
   // prune or expand it
   
-  if (estar->rhs[elem] > estar->ubound) {
-    // can be pruned
-    estar->phi[elem] = INFINITY;
-    pqueue_insert_or_update (&estar->pruned, elem, estar->rhs[elem]);
-  }
-  else if (estar->phi[elem] > estar->rhs[elem]) {
-    // can be lowered
-    estar->phi[elem] = estar->rhs[elem];
-    for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
-      estar_update (estar, *nbor);
+  if (estar->phi[elem] > estar->rhs[elem]) {
+    hval = estar->hfunc (elem);
+    if (estar->rhs[elem] + hval > estar->ubound) {
+      // can be pruned
+      printf ("estar_propagate: pruning %g + %g == %g > %g\n",
+	      estar->rhs[elem], hval, estar->rhs[elem] + hval, estar->ubound);
+      estar->phi[elem] = INFINITY;
+      pqueue_insert_or_update (&estar->pruned, elem, estar->rhs[elem] + hval);
+    }
+    else {
+      // can be lowered
+      printf ("estar_propagate: lowering %g\n", estar->rhs[elem]);
+      estar->phi[elem] = estar->rhs[elem];
+      for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
+	estar_update (estar, *nbor);
+      }
     }
   }
   else {
     // must be raised
+    printf ("estar_propagate: raising %g\n", estar->phi[elem]);
     estar->phi[elem] = INFINITY;
     for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
       estar_update (estar, *nbor);
