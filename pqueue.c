@@ -36,6 +36,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 
 static void bubble_up (size_t * heap, double * key, size_t * pos, size_t index)
@@ -109,6 +110,14 @@ void pqueue_init (pqueue_t * pq, size_t cap, size_t nelem)
   }
   pq->len = 0;
   pq->cap = cap;
+  pq->nelem = nelem;
+}
+
+
+void pqueue_reset (pqueue_t * pq)
+{
+  memset (pq->pos, 0, pq->nelem * sizeof *pq->pos);
+  pq->len = 0;
 }
 
 

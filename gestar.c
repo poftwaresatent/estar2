@@ -77,24 +77,24 @@ static double hfunc (size_t elem)
 static double compute_obound ()
 {
   if (-1 == dstar_compute_path (&dstar, STARTX, STARTY)) {
+    if (dbg) { printf ("compute_obound found no path\n"); }
     return INFINITY;
   }
+  if (dbg) { printf ("compute_obound %g\n", dstar.phi[grid_elem (&dstar.grid, STARTX, STARTY)]); }
   return dstar.phi[grid_elem (&dstar.grid, STARTX, STARTY)];
 }
 
 
 static void init ()
 {
-  double obound;
-  
   estar_init (&estar, DIMX, DIMY, hfunc);
   dstar_init (&dstar, DIMX, DIMY, hfunc);
   
-  dstar_set_goal (&dstar, GOALX, GOALY);
-  ////  obound = compute_obound ();
-  obound = INFINITY;
+  // It is important to first let D* know about the goal, because
+  // compute_bound uses that information.
   
-  estar_set_goal (&estar, GOALX, GOALY, obound);
+  dstar_set_goal (&dstar, GOALX, GOALY);
+  estar_set_goal (&estar, GOALX, GOALY, compute_obound ());
   
   play = 0;
   dbg = 1;
@@ -236,7 +236,7 @@ gint cb_phi_expose (GtkWidget * ww,
 	}
 	else if (estar.rhs[elem] <= maxknown) { /* known */
 	  blue = 1.0 - estar.rhs[elem] / maxknown;
-	  if (estar.flags[elem] & FLAG_DBOUND) {
+	  if (0 != estar.pruned.pos[elem]) {
 	    green = 0.5 * blue;
 	  }
 	  else {
@@ -309,7 +309,7 @@ gint cb_phi_expose (GtkWidget * ww,
 	cairo_stroke (cr);
       }
       
-      if (estar.flags[elem] & FLAG_DBOUND) {
+      if (0 != estar.pruned.pos[elem]) {
 	cairo_set_source_rgb (cr, 1.0, 0.0, 0.5);
 	cairo_move_to (cr,
 		       w_phi_x0 + (ii+0.2) * w_phi_sx,
@@ -570,7 +570,7 @@ gint cb_phi_click (GtkWidget * ww,
 	estar_dump_queue (&estar, "  ");
       }
     }
-    ////    estar_set_obound (&estar, compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY));
+    estar.ubound = compute_obound ();
     gtk_widget_queue_draw (w_phi);
     
     if (dbg) {
@@ -618,7 +618,7 @@ static gint cb_phi_motion(GtkWidget * ww,
     else {
       change_obstacle (mousex, mousey, ODIST, 1);
     }
-    ////    estar_set_obound (&estar, compute_obound (&estar.grid, GOALX, GOALY, STARTX, STARTY));
+    estar.ubound = compute_obound ();
     gtk_widget_queue_draw (w_phi);
   }
   

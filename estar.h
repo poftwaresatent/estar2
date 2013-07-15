@@ -39,8 +39,7 @@
 
 enum {
   ESTAR_FLAG_GOAL      = 1,
-  ESTAR_FLAG_OBSTACLE  = 2,
-  FLAG_DBOUND = 4		/* XXXX to be removed */
+  ESTAR_FLAG_OBSTACLE  = 2
 };
 
 
@@ -53,18 +52,17 @@ typedef struct {
   int * flags;
   grid_t grid;
   pqueue_t pq;
+  pqueue_t pruned;
   estar_hfunc_t hfunc;
-  double obound;
+  double ubound;
 } estar_t;
 
 
 void estar_init (estar_t * estar, size_t dimx, size_t dimy, estar_hfunc_t hfunc);
 void estar_fini (estar_t * estar);
 
-void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound);
+void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double ubound);
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed);
-void estar_set_obound (estar_t * estar, double obound);
-
 void estar_propagate (estar_t * estar);
 
 void estar_dump_queue (estar_t * estar, char const * pfx);

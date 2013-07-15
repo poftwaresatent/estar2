@@ -220,18 +220,29 @@ int dstar_compute_path (dstar_t * dstar, size_t sx, size_t sy)
   start = grid_elem (&dstar->grid, sx, sy);
   skey = dstar->hfunc (start);
   
-  while (pqueue_topkey (&dstar->pq) < skey || dstar->rhs[start] != dstar->phi[start]) {
+  printf ("dstar_compute_path\n  queue size %zu\n  propagating ", dstar->pq.len);
+  
+  while (0 != dstar->pq.len) { ////pqueue_topkey (&dstar->pq) < skey || dstar->rhs[start] != dstar->phi[start]) {
+    
+    printf (".");
+    fflush (stdout);
+    
     dstar_propagate (dstar);
     if (pqueue_empty (&dstar->pq)) {
+      
+      printf ("X");
       break;
     }
   }
+  
+  printf ("\n");
   
   for (elem = 0; elem < dstar->grid.nelem; ++elem) {
     dstar->flags[elem] &= ~DSTAR_FLAG_PATH;
   }
   
   if (isinf (dstar->phi[start])) {
+    printf ("  unreachable\n");
     /* unreachable */
     return -1;
   }
@@ -239,6 +250,7 @@ int dstar_compute_path (dstar_t * dstar, size_t sx, size_t sy)
   nsteps = 0;
   elem = start;
   do {
+    printf ("  %g\n", dstar->phi[elem]);
     ++nsteps;
     dstar->flags[elem] |= DSTAR_FLAG_PATH;
     for (nbor = dstar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {

@@ -41,11 +41,12 @@ typedef struct {
   size_t * heap;		/* stores elements, starting at heap[1] (not heap[0]) */
   double * key;			/* stores the key used for ordering the queue */
   size_t * pos;			/* reverse lookup: heap[pos[x]] == x  */
-  size_t len, cap;
+  size_t len, cap, nelem;
 } pqueue_t;
 
 
 void pqueue_init (pqueue_t * pq, size_t cap, size_t nelem);
+void pqueue_reset (pqueue_t * pq);
 void pqueue_fini (pqueue_t * pq);
 
 #define pqueue_pos(pq,elem) (pq)->pos[(elem)]

@@ -51,7 +51,7 @@ static double interpolate (double cost, double primary, double secondary)
   
   // pow(cost,2) could be cached inside estar_set_speed. And so could
   // the other squared terms. That might speed things up, but it would
-  // certainly make hearier caching code.
+  // certainly make hairier caching code.
   
   tmp = primary + secondary;
   return (tmp + sqrt(pow(tmp, 2.0)
@@ -83,8 +83,6 @@ static void calc_rhs (estar_t * estar, size_t elem, double phimax)
     // Filter both the primary and the secondary: do not propagate
     // from obstacles, queued cells, cells above the wavefront, or
     // cells at infinity.
-    //
-    // XXXX how about DBOUND cells?
     
     if (estar->flags[primary] & ESTAR_FLAG_OBSTACLE
 	|| estar->pq.pos[primary] != 0
@@ -143,6 +141,7 @@ void estar_init (estar_t * estar, size_t dimx, size_t dimy, estar_hfunc_t hfunc)
   
   grid_init (&estar->grid, dimx, dimy);
   pqueue_init (&estar->pq, dimx + dimy, estar->grid.nelem);
+  pqueue_init (&estar->pruned, dimx + dimy, estar->grid.nelem);
   
   estar->cost = malloc ((sizeof *estar->cost) * estar->grid.nelem);
   if (NULL == estar->cost) {
@@ -169,7 +168,7 @@ void estar_init (estar_t * estar, size_t dimx, size_t dimy, estar_hfunc_t hfunc)
   }
   
   estar->hfunc = hfunc;
-  estar->obound = INFINITY;
+  estar->ubound = INFINITY;
 }
 
 
@@ -181,22 +180,30 @@ void estar_fini (estar_t * estar)
   free(estar->cost);
   grid_fini (&estar->grid);
   pqueue_fini (&estar->pq);
+  pqueue_fini (&estar->pruned);
 }
 
 
-// XXXX set_goal in the documentation does a re-initialization, unlike
-// this here which currently only gets called once at the
-// beginning... this version here is OK to /add/ goal cells to the
-// goal set, but that currently does not work. The interface for
-// setting the goal should be redesigned anyway.
-void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double obound)
+void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double ubound)
 {
-  size_t goal = grid_elem (&estar->grid, ix, iy);
+  size_t ii, goal;
+  
+  /* re-initialize without touching cost and obstacle information */
+  for (ii = 0; ii < estar->grid.nelem; ++ii) {
+    estar->phi[ii] = INFINITY;
+    estar->rhs[ii] = INFINITY;
+    estar->flags[ii] &= ~ESTAR_FLAG_GOAL;
+  }
+  pqueue_reset (&estar->pq);
+  pqueue_reset (&estar->pruned);
+  
+  /* set the goal and initialize the queue */
+  goal = grid_elem (&estar->grid, ix, iy);
   estar->rhs[goal] = 0.0;
   estar->flags[goal] |= ESTAR_FLAG_GOAL;
   estar->flags[goal] &= ~ESTAR_FLAG_OBSTACLE;
   pqueue_insert_or_update (&estar->pq, goal, 0.0);
-  estar->obound = obound;
+  estar->ubound = ubound;
 }
 
 
@@ -207,15 +214,6 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   size_t * nbor;
   
   elem = grid_elem (&estar->grid, ix, iy);
-  
-  // XXXX I'm undecided yet whether this check here makes the most
-  // sense. The other option is to make sure that the caller doesn't
-  // place obstacles into a goal cell. The latter somehow makes more
-  // sense to me at the moment, so in gestar.c there is code to filter
-  // goal cells from the obstacle setting routines.
-  ////  if (cell->flags & ESTAR_FLAG_GOAL) {
-  ////    return;
-  ////  }
   
   if (speed <= 0.0) {
     cost = INFINITY;
@@ -241,31 +239,6 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
     estar_update (estar, *nbor);
   }
-}
-
-
-void estar_set_obound (estar_t * estar, double obound)
-{
-#warning "reimplement this with a separate priority queue"
-
-  /* if (obound > estar->obound) { */
-  /*   // XXXX brute force for now, should have a separate heap for */
-  /*   // pruned cells to make this more efficient. */
-  /*   size_t ii, nn; */
-  /*   cell_t * cell; */
-  /*   nn = estar->grid.dimx * estar->grid.dimy; */
-  /*   cell = estar->grid.cell; */
-  /*   for (ii = 0; ii < nn; ++ii) { */
-  /*     if ((cell->flags & FLAG_DBOUND) && (cell->rhs + estar->hfunc(cell) < obound)) { */
-  /* 	cell->flags &= ~FLAG_DBOUND; */
-  /* 	cell->phi = INFINITY; */
-  /* 	pqueue_insert_or_update (&estar->pq, cell); */
-  /*     } */
-  /*     ++cell; */
-  /*   } */
-  /* } */
-  
-  /* estar->obound = obound; */
 }
 
 
@@ -305,32 +278,33 @@ void estar_propagate (estar_t * estar)
   //////////////////////////////////////////////////
   // determine next element to expand
   
-  do {
+  if (pqueue_topkey (&estar->pruned) < estar->ubound) {
+    elem = pqueue_extract_or_what (&estar->pruned);
+  }
+  else {
     elem = pqueue_extract_or_what (&estar->pq);
-    if ((size_t) -1 == elem) {
-      return;
-    }
-#warning "reconsider this whole upper bound business"
-    /* if (estar->rhs[elem] + estar->hfunc (elem) >= estar->obound) { */
-    /*   estar->flags[elem] |= FLAG_DBOUND; */
-    /*   estar->phi[elem] = INFINITY;	/\* not sure if this is needed *\/ */
-    /* } */
-    /* else { */
-      estar->flags[elem] &= ~FLAG_DBOUND;
-      break;
-    /* } */
-  } while (1);
+  }
+  if ((size_t) -1 == elem) {
+    return;
+  }
   
   //////////////////////////////////////////////////
-  // expand it
+  // prune or expand it
   
-  if (estar->phi[elem] > estar->rhs[elem]) {
+  if (estar->rhs[elem] > estar->ubound) {
+    // can be pruned
+    estar->phi[elem] = INFINITY;
+    pqueue_insert_or_update (&estar->pruned, elem, estar->rhs[elem]);
+  }
+  else if (estar->phi[elem] > estar->rhs[elem]) {
+    // can be lowered
     estar->phi[elem] = estar->rhs[elem];
     for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
       estar_update (estar, *nbor);
     }
   }
   else {
+    // must be raised
     estar->phi[elem] = INFINITY;
     for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
       estar_update (estar, *nbor);
@@ -361,7 +335,7 @@ int estar_check (estar_t * estar, char const * pfx)
       }
       else {
 	// inconsistent
-	if ( (! (estar->flags[elem] | FLAG_DBOUND)) && 0 == estar->pq.pos[elem]) {
+	if (0 == estar->pq.pos[elem] && 0 == estar->pruned.pos[elem]) {
 	  printf ("%sinconsistent cell [%4zu %4zu] should be on queue\n", pfx, ii, jj);
 	  status |= 2;
 	}
