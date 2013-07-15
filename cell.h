@@ -30,8 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ESTAR_MINI2D_CELL_H
-#define ESTAR_MINI2D_CELL_H
+#ifndef ESTAR2_CELL_H
+#define ESTAR2_CELL_H
 
 #include <stddef.h>
 
