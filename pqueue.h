@@ -54,10 +54,10 @@ void pqueue_fini (pqueue_t * pq);
 
 double pqueue_topkey (pqueue_t * pq);
 
-void pqueue_insert_or_update (pqueue_t * pq, size_t id, double key);
-void pqueue_remove_or_ignore (pqueue_t * pq, size_t id);
+void pqueue_insert (pqueue_t * pq, size_t id, double key);
+void pqueue_remove (pqueue_t * pq, size_t id);
 
-size_t pqueue_extract_or_what (pqueue_t * pq);
+size_t pqueue_extract (pqueue_t * pq);
 
 void pqueue_dump (pqueue_t * pq, char const * pfx);
 

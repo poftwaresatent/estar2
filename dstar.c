@@ -60,6 +60,16 @@ static void calc_rhs (dstar_t * dstar, size_t elem, double phimax)
 }
 
 
+/* XXXX should use a two-element queue key for D* Lite! */
+static double calc_key (dstar_t * dstar, size_t elem)
+{
+  if (dstar->phi[elem] < dstar->rhs[elem]) {
+    return dstar->phi[elem] + dstar->hfunc (elem);
+  }
+  return dstar->rhs[elem] + dstar->hfunc (elem);
+}
+
+
 void dstar_init (dstar_t * dstar, size_t dimx, size_t dimy, dstar_hfunc_t hfunc)
 {
   size_t ii;
@@ -106,18 +116,24 @@ void dstar_fini (dstar_t * dstar)
 }
 
 
-// XXXX set_goal in the documentation does a re-initialization, unlike
-// this here which currently only gets called once at the
-// beginning... this version here is OK to /add/ goal cells to the
-// goal set, but that currently does not work. The interface for
-// setting the goal should be redesigned anyway.
 void dstar_set_goal (dstar_t * dstar, size_t ix, size_t iy)
 {
-  size_t goal = grid_elem (&dstar->grid, ix, iy);
+  size_t ii, goal;
+  
+  /* re-initialize without touching cost and obstacle information */
+  for (ii = 0; ii < dstar->grid.nelem; ++ii) {
+    dstar->phi[ii] = INFINITY;
+    dstar->rhs[ii] = INFINITY;
+    dstar->flags[ii] &= ~DSTAR_FLAG_GOAL;
+  }
+  pqueue_reset (&dstar->pq);
+  
+  /* set the goal and initialize the queue */
+  goal = grid_elem (&dstar->grid, ix, iy);
   dstar->rhs[goal] = 0.0;
   dstar->flags[goal] |= DSTAR_FLAG_GOAL;
   dstar->flags[goal] &= ~DSTAR_FLAG_OBSTACLE;
-  pqueue_insert_or_update (&dstar->pq, goal, 0.0);
+  pqueue_insert (&dstar->pq, goal, 0.0);
 }
 
 
@@ -159,7 +175,7 @@ void dstar_set_speed (dstar_t * dstar, size_t ix, size_t iy, double speed)
 static void dstar_update (dstar_t * dstar, size_t elem)
 {
   if (dstar->flags[elem] & DSTAR_FLAG_OBSTACLE) {
-    pqueue_remove_or_ignore (&dstar->pq, elem);
+    pqueue_remove (&dstar->pq, elem);
     return;
   }
   
@@ -171,15 +187,10 @@ static void dstar_update (dstar_t * dstar, size_t elem)
   }
   
   if (dstar->phi[elem] != dstar->rhs[elem]) {
-    if (dstar->rhs[elem] < dstar->phi[elem]) {
-      pqueue_insert_or_update (&dstar->pq, elem, dstar->rhs[elem]);
-    }
-    else {
-      pqueue_insert_or_update (&dstar->pq, elem, dstar->phi[elem]);
-    }
+    pqueue_insert (&dstar->pq, elem, calc_key (dstar, elem));
   }
   else {
-    pqueue_remove_or_ignore (&dstar->pq, elem);
+    pqueue_remove (&dstar->pq, elem);
   }
 }
 
@@ -189,7 +200,7 @@ void dstar_propagate (dstar_t * dstar)
   size_t elem;
   size_t * nbor;
   
-  elem = pqueue_extract_or_what (&dstar->pq);
+  elem = pqueue_extract (&dstar->pq);
   if ((size_t) -1 == elem) {
     return;
   }
@@ -210,39 +221,47 @@ void dstar_propagate (dstar_t * dstar)
 }
 
 
+/* XXXX this needs debugging... for now just always propagate everything. */
 int dstar_compute_path (dstar_t * dstar, size_t sx, size_t sy)
 {
   size_t start, elem;
   size_t * nbor;
   int nsteps;
-  double skey;
   
   start = grid_elem (&dstar->grid, sx, sy);
-  skey = dstar->hfunc (start);
   
-  printf ("dstar_compute_path\n  queue size %zu\n  propagating ", dstar->pq.len);
+  /* printf ("dstar_compute_path\n" */
+  /* 	  "  queue size %zu\n" */
+  /* 	  "  start key %g\n" */
+  /* 	  "  top key %g\n" */
+  /* 	  "  propagating ", */
+  /* 	  dstar->pq.len, */
+  /* 	  calc_key (dstar, start), */
+  /* 	  pqueue_topkey (&dstar->pq)); */
   
-  while (0 != dstar->pq.len) { ////pqueue_topkey (&dstar->pq) < skey || dstar->rhs[start] != dstar->phi[start]) {
+  /* while (pqueue_topkey (&dstar->pq) < calc_key (dstar, start) */
+  /* 	 || dstar->rhs[start] != dstar->phi[start]) { */
+  while (dstar->pq.len > 0) {
     
-    printf (".");
-    fflush (stdout);
+    /* printf ("."); */
+    /* fflush (stdout); */
     
     dstar_propagate (dstar);
     if (pqueue_empty (&dstar->pq)) {
       
-      printf ("X");
+      /* printf ("X"); */
       break;
     }
   }
   
-  printf ("\n");
+  /* printf ("\n"); */
   
   for (elem = 0; elem < dstar->grid.nelem; ++elem) {
     dstar->flags[elem] &= ~DSTAR_FLAG_PATH;
   }
   
   if (isinf (dstar->phi[start])) {
-    printf ("  unreachable\n");
+    /* printf ("  unreachable\n"); */
     /* unreachable */
     return -1;
   }
@@ -250,7 +269,7 @@ int dstar_compute_path (dstar_t * dstar, size_t sx, size_t sy)
   nsteps = 0;
   elem = start;
   do {
-    printf ("  %g\n", dstar->phi[elem]);
+    /* printf ("  %g\n", dstar->phi[elem]); */
     ++nsteps;
     dstar->flags[elem] |= DSTAR_FLAG_PATH;
     for (nbor = dstar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {

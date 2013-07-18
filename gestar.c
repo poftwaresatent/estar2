@@ -74,13 +74,13 @@ static double hfunc (size_t elem)
 }
 
 
-static double compute_obound ()
+static double compute_ubound ()
 {
   if (-1 == dstar_compute_path (&dstar, STARTX, STARTY)) {
-    if (dbg) { printf ("compute_obound found no path\n"); }
+    if (dbg) { printf ("compute_ubound found no path\n"); }
     return INFINITY;
   }
-  if (dbg) { printf ("compute_obound %g\n", dstar.phi[grid_elem (&dstar.grid, STARTX, STARTY)]); }
+  if (dbg) { printf ("compute_ubound %g\n", dstar.phi[grid_elem (&dstar.grid, STARTX, STARTY)]); }
   return dstar.phi[grid_elem (&dstar.grid, STARTX, STARTY)];
 }
 
@@ -94,7 +94,7 @@ static void init ()
   // compute_bound uses that information.
   
   dstar_set_goal (&dstar, GOALX, GOALY);
-  estar_set_goal (&estar, GOALX, GOALY, compute_obound ());
+  estar_set_goal (&estar, GOALX, GOALY, compute_ubound ());
   
   play = 0;
   dbg = 1;
@@ -261,20 +261,32 @@ gint cb_phi_expose (GtkWidget * ww,
   //////////////////////////////////////////////////
   // frames
   
-  cairo_set_line_width (cr, 1.0);
-  
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
       elem = grid_elem (&estar.grid, ii, jj);
       
       if (ii == STARTX && jj == STARTY) { /* start */
+	cairo_set_line_width (cr, 1.0);
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
       else if (estar.flags[elem] & ESTAR_FLAG_GOAL) { /* goal */
+	cairo_set_line_width (cr, 1.0);
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
       else if (0 != pqueue_pos (&estar.pq, elem)) { /* on queue */
-	cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
+	if (pqueue_topkey (&estar.pq) == estar.pq.key[elem]) { /* soon to be expanded */
+	  if (elem == estar.pq.heap[1]) {		       /* next one to be expanded */
+	    cairo_set_line_width (cr, 2.0);
+	  }
+	  else {
+	    cairo_set_line_width (cr, 1.0);
+	  }
+	  cairo_set_source_rgb (cr, 1.0, 0.8, 0.0);
+	}
+	else {
+	  cairo_set_line_width (cr, 1.0);
+	  cairo_set_source_rgb (cr, 1.0, 0.5, 0.0);
+	}
       }
       else {
 	continue;
@@ -570,7 +582,7 @@ gint cb_phi_click (GtkWidget * ww,
 	estar_dump_queue (&estar, "  ");
       }
     }
-    estar.ubound = compute_obound ();
+    estar.ubound = compute_ubound ();
     gtk_widget_queue_draw (w_phi);
     
     if (dbg) {
@@ -618,7 +630,7 @@ static gint cb_phi_motion(GtkWidget * ww,
     else {
       change_obstacle (mousex, mousey, ODIST, 1);
     }
-    estar.ubound = compute_obound ();
+    estar.ubound = compute_ubound ();
     gtk_widget_queue_draw (w_phi);
   }
   

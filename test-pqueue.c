@@ -43,7 +43,7 @@ static int check (pqueue_t * pq, double * key, size_t len)
   size_t elem;
   
   for (ii = 0; ii < len; ++ii) {
-    elem = pqueue_extract_or_what (pq);
+    elem = pqueue_extract (pq);
     if ((size_t) -1 == elem) {
       printf ("  ERROR queue empty at ii = %zu\n", ii);
       return 1;
@@ -58,7 +58,7 @@ static int check (pqueue_t * pq, double * key, size_t len)
     }
   }
   
-  elem = pqueue_extract_or_what (pq);
+  elem = pqueue_extract (pq);
   if ((size_t) -1 != elem) {
     printf ("  ERROR queue should be empty after %zu extractions\n", len);
     return 4;
@@ -75,31 +75,31 @@ int main (int argc, char ** argv)
   
   pqueue_init (&pq, 2, 10);
   
-  pqueue_insert_or_update (&pq, 0, 2.2);
+  pqueue_insert (&pq, 0, 2.2);
   printf ("after insertion of (0, 2.2)\n");
   pqueue_dump (&pq, "  ");
 
-  pqueue_insert_or_update (&pq, 1, 3.3);
+  pqueue_insert (&pq, 1, 3.3);
   printf ("after insertion of (1, 3.3)\n");
   pqueue_dump (&pq, "  ");
   
-  pqueue_insert_or_update (&pq, 2, 1.9);
+  pqueue_insert (&pq, 2, 1.9);
   printf ("after insertion of (2, 1.9)\n");
   pqueue_dump (&pq, "  ");
   
-  pqueue_insert_or_update (&pq, 3, 1.1);
+  pqueue_insert (&pq, 3, 1.1);
   printf ("after insertion of (3, 1.1)\n");
   pqueue_dump (&pq, "  ");
   
-  pqueue_insert_or_update (&pq, 4, 3.3);
+  pqueue_insert (&pq, 4, 3.3);
   printf ("after insertion of (4, 3.3)\n");
   pqueue_dump (&pq, "  ");
   
-  pqueue_insert_or_update (&pq, 1, 2.1);
+  pqueue_insert (&pq, 1, 2.1);
   printf ("after update of (1, 2.1)\n");
   pqueue_dump (&pq, "  ");
   
-  pqueue_remove_or_ignore (&pq, 2);
+  pqueue_remove (&pq, 2);
   printf ("after removal of 2\n");
   pqueue_dump (&pq, "  ");
   

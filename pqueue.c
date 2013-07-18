@@ -140,7 +140,7 @@ double pqueue_topkey (pqueue_t * pq)
 }
 
 
-void pqueue_insert_or_update (pqueue_t * pq, size_t elem, double key)
+void pqueue_insert (pqueue_t * pq, size_t elem, double key)
 {
   size_t len;
   size_t * heap;
@@ -181,7 +181,7 @@ void pqueue_insert_or_update (pqueue_t * pq, size_t elem, double key)
 }
 
 
-void pqueue_remove_or_ignore (pqueue_t * pq, size_t elem)
+void pqueue_remove (pqueue_t * pq, size_t elem)
 {
   size_t pos, repl;
   
@@ -200,7 +200,7 @@ void pqueue_remove_or_ignore (pqueue_t * pq, size_t elem)
 }
 
 
-size_t pqueue_extract_or_what (pqueue_t * pq)
+size_t pqueue_extract (pqueue_t * pq)
 {
   size_t elem;
   

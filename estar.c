@@ -41,6 +41,9 @@
 static void estar_update (estar_t * estar, size_t elem);
 
 
+/**
+   \pre primary <= secondary
+*/
 static double interpolate (double cost, double primary, double secondary)
 {
   double tmp;
@@ -202,7 +205,7 @@ void estar_set_goal (estar_t * estar, size_t ix, size_t iy, double ubound)
   estar->rhs[goal] = 0.0;
   estar->flags[goal] |= ESTAR_FLAG_GOAL;
   estar->flags[goal] &= ~ESTAR_FLAG_OBSTACLE;
-  pqueue_insert_or_update (&estar->pq, goal, 0.0);
+  pqueue_insert (&estar->pq, goal, 0.0);
   estar->ubound = ubound;
 }
 
@@ -245,7 +248,7 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 static void estar_update (estar_t * estar, size_t elem)
 {
   if (estar->flags[elem] & ESTAR_FLAG_OBSTACLE) {
-    pqueue_remove_or_ignore (&estar->pq, elem);
+    pqueue_remove (&estar->pq, elem);
     return;
   }
   
@@ -257,15 +260,16 @@ static void estar_update (estar_t * estar, size_t elem)
   }
   
   if (estar->phi[elem] != estar->rhs[elem]) {
+    /* Use either rhs or phi as queue key, whichever is smaller. */
     if (estar->rhs[elem] < estar->phi[elem]) {
-      pqueue_insert_or_update (&estar->pq, elem, estar->rhs[elem]);
+      pqueue_insert (&estar->pq, elem, estar->rhs[elem]);
     }
     else {
-      pqueue_insert_or_update (&estar->pq, elem, estar->phi[elem]);
+      pqueue_insert (&estar->pq, elem, estar->phi[elem]);
     }
   }
   else {
-    pqueue_remove_or_ignore (&estar->pq, elem);
+    pqueue_remove (&estar->pq, elem);
   }
 }
 
@@ -277,46 +281,62 @@ void estar_propagate (estar_t * estar)
   double hval;
   
   //////////////////////////////////////////////////
-  // determine next element to expand
+  // are there any pruned elements that need to be resurrected?
   
   if (pqueue_topkey (&estar->pruned) < estar->ubound) {
-    printf ("estar_propagate: resurrect pruned element %g < %g\n",
-	    pqueue_topkey (&estar->pruned), estar->ubound);
-    elem = pqueue_extract_or_what (&estar->pruned);
-  }
-  else {
-    printf ("estar_propagate: normal queue processing (%g >= %g)\n",
-	    pqueue_topkey (&estar->pruned), estar->ubound);
-    elem = pqueue_extract_or_what (&estar->pq);
-  }
-  if ((size_t) -1 == elem) {
+    
+    // Later, when the start element can change during operation,
+    // we'll need to check whether the node can be re-pruned right
+    // here,
+    
+    elem = pqueue_extract (&estar->pruned);
+    estar->phi[elem] = INFINITY;
+    pqueue_insert (&estar->pq, elem, estar->rhs[elem]);
+    
+    // Normally we could just run this whole block as a while loop,
+    // but I like to see what's happening at each step with the
+    // boundary elements, so return (for plotting).
+    
     return;
   }
   
   //////////////////////////////////////////////////
-  // prune or expand it
+  // the rest remains the same execept for pruning cells
+  
+  elem = pqueue_extract (&estar->pq);
+  if ((size_t) -1 == elem) {
+    return;
+  }
+  
+  printf ("estar_propagate [%4zu %4zu]\n",
+	  grid_ix (&estar->grid, elem), grid_iy (&estar->grid, elem));
   
   if (estar->phi[elem] > estar->rhs[elem]) {
+
+    printf ("  lower %g to %g (delta: %g)\n",
+	    estar->phi[elem], estar->rhs[elem], estar->phi[elem] - estar->rhs[elem]);
+
+    estar->phi[elem] = estar->rhs[elem];
+    
     hval = estar->hfunc (elem);
     if (estar->rhs[elem] + hval > estar->ubound) {
-      // can be pruned
-      printf ("estar_propagate: pruning %g + %g == %g > %g\n",
-	      estar->rhs[elem], hval, estar->rhs[elem] + hval, estar->ubound);
-      estar->phi[elem] = INFINITY;
-      pqueue_insert_or_update (&estar->pruned, elem, estar->rhs[elem] + hval);
+      
+      printf ("  prune %g + %g = %g\n",
+	      estar->rhs[elem], hval, estar->rhs[elem] + hval);
+      
+      pqueue_insert (&estar->pruned, elem, estar->rhs[elem] + hval);
     }
     else {
-      // can be lowered
-      printf ("estar_propagate: lowering %g\n", estar->rhs[elem]);
-      estar->phi[elem] = estar->rhs[elem];
+      pqueue_remove (&estar->pruned, elem);
       for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
 	estar_update (estar, *nbor);
       }
     }
   }
   else {
-    // must be raised
-    printf ("estar_propagate: raising %g\n", estar->phi[elem]);
+
+    printf ("  raise\n");
+    
     estar->phi[elem] = INFINITY;
     for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
       estar_update (estar, *nbor);
@@ -347,7 +367,7 @@ int estar_check (estar_t * estar, char const * pfx)
       }
       else {
 	// inconsistent
-	if (0 == estar->pq.pos[elem] && 0 == estar->pruned.pos[elem]) {
+	if (0 == estar->pq.pos[elem]) {
 	  printf ("%sinconsistent cell [%4zu %4zu] should be on queue\n", pfx, ii, jj);
 	  status |= 2;
 	}
