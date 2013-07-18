@@ -233,6 +233,7 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
     estar->phi[elem] = INFINITY;
     estar->rhs[elem] = INFINITY;
     estar->flags[elem] |= ESTAR_FLAG_OBSTACLE;
+    pqueue_remove (&estar->pruned, elem); /* in case an obstacle was added onto a pruned element */
   }
   else {
     estar->flags[elem] &= ~ESTAR_FLAG_OBSTACLE;
@@ -290,6 +291,13 @@ void estar_propagate (estar_t * estar)
     // here,
     
     elem = pqueue_extract (&estar->pruned);
+    
+    if (estar->flags[elem] & ESTAR_FLAG_OBSTACLE) {
+      estar->rhs[elem] = INFINITY;
+      estar->phi[elem] = INFINITY;
+      return;			/* or break/continue or whatever */
+    }
+    
     estar->phi[elem] = INFINITY;
     pqueue_insert (&estar->pq, elem, estar->rhs[elem]);
     
@@ -321,12 +329,16 @@ void estar_propagate (estar_t * estar)
     hval = estar->hfunc (elem);
     if (estar->rhs[elem] + hval > estar->ubound) {
       
-      printf ("  prune %g + %g = %g\n",
-	      estar->rhs[elem], hval, estar->rhs[elem] + hval);
+      printf ("  prune %g + %g = %g < %g\n",
+	      estar->rhs[elem], hval, estar->rhs[elem] + hval, estar->ubound);
       
       pqueue_insert (&estar->pruned, elem, estar->rhs[elem] + hval);
     }
     else {
+      
+      printf ("  do NOT prune %g + %g = %g <= %g\n",
+	      estar->rhs[elem], hval, estar->rhs[elem] + hval, estar->ubound);
+      
       pqueue_remove (&estar->pruned, elem);
       for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
 	estar_update (estar, *nbor);
@@ -361,7 +373,9 @@ int estar_check (estar_t * estar, char const * pfx)
       if (estar->rhs[elem] == estar->phi[elem]) {
 	// consistent
 	if (0 != estar->pq.pos[elem]) {
-	  printf ("%sconsistent cell [%4zu %4zu] should not be on queue\n", pfx, ii, jj);
+	  printf ("%sconsistent cell should not be on queue:  [%4zu %4zu]  phi: %g  key: %g  %s\n",
+		  pfx, ii, jj, estar->phi[elem], estar->pq.key[elem],
+		  estar->pruned.pos[elem] == 0 ? "not pruned" : "pruned");
 	  status |= 1;
 	}
       }
