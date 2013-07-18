@@ -298,7 +298,7 @@ void estar_propagate (estar_t * estar)
       return;			/* or break/continue or whatever */
     }
     
-    estar->phi[elem] = INFINITY;
+    estar->phi[elem] = INFINITY; /* redundant? depends what we do when an element gets pruned... */
     pqueue_insert (&estar->pq, elem, estar->rhs[elem]);
     
     // Normally we could just run this whole block as a while loop,
@@ -321,10 +321,8 @@ void estar_propagate (estar_t * estar)
   
   if (estar->phi[elem] > estar->rhs[elem]) {
 
-    printf ("  lower %g to %g (delta: %g)\n",
+    printf ("  maybe lower %g to %g (delta: %g)\n",
 	    estar->phi[elem], estar->rhs[elem], estar->phi[elem] - estar->rhs[elem]);
-
-    estar->phi[elem] = estar->rhs[elem];
     
     hval = estar->hfunc (elem);
     if (estar->rhs[elem] + hval > estar->ubound) {
@@ -332,6 +330,7 @@ void estar_propagate (estar_t * estar)
       printf ("  prune %g + %g = %g < %g\n",
 	      estar->rhs[elem], hval, estar->rhs[elem] + hval, estar->ubound);
       
+      estar->phi[elem] = INFINITY;
       pqueue_insert (&estar->pruned, elem, estar->rhs[elem] + hval);
     }
     else {
@@ -339,6 +338,7 @@ void estar_propagate (estar_t * estar)
       printf ("  do NOT prune %g + %g = %g <= %g\n",
 	      estar->rhs[elem], hval, estar->rhs[elem] + hval, estar->ubound);
       
+      estar->phi[elem] = estar->rhs[elem];
       pqueue_remove (&estar->pruned, elem);
       for (nbor = estar->grid.cell[elem].nbor; (size_t) -1 != *nbor; ++nbor) {
 	estar_update (estar, *nbor);
@@ -381,8 +381,8 @@ int estar_check (estar_t * estar, char const * pfx)
       }
       else {
 	// inconsistent
-	if (0 == estar->pq.pos[elem]) {
-	  printf ("%sinconsistent cell [%4zu %4zu] should be on queue\n", pfx, ii, jj);
+	if (0 == estar->pq.pos[elem] && 0 == estar->pruned.pos[elem]) {
+	  printf ("%sinconsistent non-pruned cell [%4zu %4zu] should be on queue\n", pfx, ii, jj);
 	  status |= 2;
 	}
       }
