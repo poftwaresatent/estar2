@@ -30,8 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ESTAR_MINI2D_ESTAR_H
-#define ESTAR_MINI2D_ESTAR_H
+#ifndef ESTAR2_ESTAR_H
+#define ESTAR2_ESTAR_H
 
 #include "grid.h"
 #include "pqueue.h"
