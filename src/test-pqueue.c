@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "estar.h"
+#include <estar/estar.h>
 
 #include <math.h>
 #include <stdlib.h>

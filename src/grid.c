@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "grid.h"
+#include <estar/grid.h>
 
 #include <stdlib.h>
 #include <err.h>

@@ -51,7 +51,7 @@ find_package (GTK2 2.24.23 COMPONENTS gtk)
 
 include_directories (include)
 
-add_library (estar2 SHARED
+add_library (estar SHARED
   src/cell.c
   src/estar.c
   src/grid.c
@@ -59,12 +59,12 @@ add_library (estar2 SHARED
   )
 
 add_executable (test-pqueue src/test-pqueue.c)
-target_link_libraries (test-pqueue estar2)
+target_link_libraries (test-pqueue estar)
 
 if (GTK2_FOUND)
   include_directories (${GTK2_INCLUDE_DIRS})
   add_executable (test-drag src/test-drag.c)
   target_link_libraries (test-drag ${GTK2_LIBRARIES})
   add_executable (gestar src/gestar.c)
-  target_link_libraries (gestar estar2 ${GTK2_LIBRARIES})
+  target_link_libraries (gestar estar ${GTK2_LIBRARIES})
 endif()
