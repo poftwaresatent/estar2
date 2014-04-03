@@ -30,8 +30,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <estar/pqueue.h>
-#include <estar/cell.h>
+#include <estar2/pqueue.h>
+#include <estar2/cell.h>
 
 #include <stdlib.h>
 #include <err.h>

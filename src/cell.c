@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <estar/cell.h>
+#include <estar2/cell.h>
 
 
 int cell_calc_gradient (cell_t * cell, double * gx, double * gy)
