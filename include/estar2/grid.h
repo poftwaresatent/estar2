@@ -33,18 +33,27 @@
 #ifndef ESTAR2_GRID_H
 #define ESTAR2_GRID_H
 
-#include "cell.h"
+#include <estar2/cell.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct {
-  cell_t * cell;
+  estar_cell_t * cell;
   size_t dimx, dimy;
-} grid_t;
+} estar_grid_t;
 
 
-void grid_init (grid_t * grid, size_t dimx, size_t dimy);
-void grid_fini (grid_t * grid);
+void estar_grid_init (estar_grid_t * grid, size_t dimx, size_t dimy);
+void estar_grid_fini (estar_grid_t * grid);
 
-#define grid_at(grid,ix,iy) (&(grid)->cell[(ix)+(iy)*(grid)->dimx])
+#define estar_grid_at(grid,ix,iy) (&(grid)->cell[(ix)+(iy)*(grid)->dimx])
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

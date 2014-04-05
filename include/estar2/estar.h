@@ -33,13 +33,16 @@
 #ifndef ESTAR2_ESTAR_H
 #define ESTAR2_ESTAR_H
 
-#include "grid.h"
-#include "pqueue.h"
+#include <estar2/grid.h>
+#include <estar2/pqueue.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
-  grid_t grid;
-  pqueue_t pq;
+  estar_grid_t grid;
+  estar_pqueue_t pq;
 } estar_t;
 
 
@@ -49,10 +52,14 @@ void estar_fini (estar_t * estar);
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy);
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed);
 
-void estar_update (estar_t * estar, cell_t * cell);
+void estar_update (estar_t * estar, estar_cell_t * cell);
 void estar_propagate (estar_t * estar);
 
 void estar_dump_queue (estar_t * estar, char const * pfx);
 int estar_check (estar_t * estar, char const * pfx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

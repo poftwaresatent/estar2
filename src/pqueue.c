@@ -42,10 +42,10 @@
 #define CALC_KEY(cell) ((cell)->rhs < (cell)->phi ? (cell)->rhs : (cell)->phi)
 
 
-static void swap (cell_t ** aa, cell_t ** bb)
+static void swap (estar_cell_t ** aa, estar_cell_t ** bb)
 {
   size_t ti;
-  cell_t *tc;
+  estar_cell_t *tc;
   ti = (*aa)->pqi;
   (*aa)->pqi = (*bb)->pqi;
   (*bb)->pqi = ti;
@@ -55,7 +55,7 @@ static void swap (cell_t ** aa, cell_t ** bb)
 }
 
 
-static void bubble_up (cell_t ** heap, size_t index)
+static void bubble_up (estar_cell_t ** heap, size_t index)
 {
   size_t parent;
   parent = index / 2;
@@ -67,7 +67,7 @@ static void bubble_up (cell_t ** heap, size_t index)
 }
 
 
-static void bubble_down (cell_t ** heap, size_t len, size_t index)
+static void bubble_down (estar_cell_t ** heap, size_t len, size_t index)
 {
   size_t child, target;
   
@@ -90,9 +90,9 @@ static void bubble_down (cell_t ** heap, size_t len, size_t index)
 }
 
 
-void pqueue_init (pqueue_t * pq, size_t cap)
+void estar_pqueue_init (estar_pqueue_t * pq, size_t cap)
 {
-  pq->heap = malloc (sizeof(cell_t*) * (cap+1));
+  pq->heap = malloc (sizeof(estar_cell_t*) * (cap+1));
   if (NULL == pq->heap) {
     errx (EXIT_FAILURE, __FILE__": %s: malloc", __func__);
   }
@@ -101,7 +101,7 @@ void pqueue_init (pqueue_t * pq, size_t cap)
 }
 
 
-void pqueue_fini (pqueue_t * pq)
+void estar_pqueue_fini (estar_pqueue_t * pq)
 {
   free (pq->heap);
   pq->len = 0;
@@ -109,7 +109,7 @@ void pqueue_fini (pqueue_t * pq)
 }
 
 
-double pqueue_topkey (pqueue_t * pq)
+double estar_pqueue_topkey (estar_pqueue_t * pq)
 {
   if (pq->len > 0) {
     return pq->heap[1]->key;
@@ -118,10 +118,10 @@ double pqueue_topkey (pqueue_t * pq)
 }
 
 
-void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
+void estar_pqueue_insert_or_update (estar_pqueue_t * pq, estar_cell_t * cell)
 {
   size_t len;
-  cell_t ** heap;
+  estar_cell_t ** heap;
   
   if (0 != cell->pqi) {
     cell->key = CALC_KEY(cell);
@@ -141,7 +141,7 @@ void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
   else {
     size_t cap;
     cap = 2 * pq->cap;
-    heap = realloc (pq->heap, sizeof(cell_t*) * (cap+1));
+    heap = realloc (pq->heap, sizeof(estar_cell_t*) * (cap+1));
     if (NULL == heap) {
       errx (EXIT_FAILURE, __FILE__": %s: realloc", __func__);
     }
@@ -159,7 +159,7 @@ void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell)
 }
 
 
-void pqueue_remove_or_ignore (pqueue_t * pq, cell_t * cell)
+void estar_pqueue_remove_or_ignore (estar_pqueue_t * pq, estar_cell_t * cell)
 {
   if (0 == cell->pqi) {
     // This could be done by the caller for efficiency, but it is much
@@ -175,9 +175,9 @@ void pqueue_remove_or_ignore (pqueue_t * pq, cell_t * cell)
 }
 
 
-cell_t * pqueue_extract (pqueue_t * pq)
+estar_cell_t * estar_pqueue_extract (estar_pqueue_t * pq)
 {
-  cell_t * cell;
+  estar_cell_t * cell;
   
   if (0 == pq->len) {
     return NULL;

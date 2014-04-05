@@ -34,23 +34,32 @@
 #define ESTAR2_PQUEUE_H
 
 
-#include "cell.h"
+#include <estar2/cell.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 typedef struct {
-  cell_t ** heap;
+  estar_cell_t ** heap;
   size_t len, cap;
-} pqueue_t;
+} estar_pqueue_t;
 
 
-void pqueue_init (pqueue_t * pq, size_t cap);
-void pqueue_fini (pqueue_t * pq);
+void estar_pqueue_init (estar_pqueue_t * pq, size_t cap);
+void estar_pqueue_fini (estar_pqueue_t * pq);
 
-double pqueue_topkey (pqueue_t * pq);
+double estar_pqueue_topkey (estar_pqueue_t * pq);
 
-void pqueue_insert_or_update (pqueue_t * pq, cell_t * cell);
-void pqueue_remove_or_ignore (pqueue_t * pq, cell_t * cell);
+void estar_pqueue_insert_or_update (estar_pqueue_t * pq, estar_cell_t * cell);
+void estar_pqueue_remove_or_ignore (estar_pqueue_t * pq, estar_cell_t * cell);
 
-cell_t * pqueue_extract (pqueue_t * pq);
+estar_cell_t * estar_pqueue_extract (estar_pqueue_t * pq);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -150,14 +150,14 @@ gint cb_phi_expose (GtkWidget * ww,
   size_t ii, jj;
   cairo_t * cr;
   double topkey, maxknown, maxoverall;
-  cell_t * cell;
+  estar_cell_t * cell;
   
-  topkey = pqueue_topkey (&estar.pq);
+  topkey = estar_pqueue_topkey (&estar.pq);
   maxknown = 0.0;
   maxoverall = 0.0;
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell = grid_at (&estar.grid, ii, jj);
+      cell = estar_grid_at (&estar.grid, ii, jj);
       if (cell->rhs == cell->phi && isfinite(cell->rhs)) {
 	if (0 == cell->pqi && cell->rhs <= topkey && maxknown < cell->rhs) {
 	  maxknown = cell->rhs;
@@ -191,9 +191,9 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell = grid_at (&estar.grid, ii, jj);
+      cell = estar_grid_at (&estar.grid, ii, jj);
       
-      if (cell->flags & FLAG_OBSTACLE) {
+      if (cell->flags & ESTAR_FLAG_OBSTACLE) {
 	cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
       }
       else {
@@ -229,18 +229,18 @@ gint cb_phi_expose (GtkWidget * ww,
   
   for (ii = 0; ii < DIMX; ++ii) {
     for (jj = 0; jj < DIMY; ++jj) {
-      cell = grid_at (&estar.grid, ii, jj);
+      cell = estar_grid_at (&estar.grid, ii, jj);
       
       if (ii == STARTX && jj == STARTY) { /* start */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 1.0);
       }
-      else if (cell->flags & FLAG_GOAL) { /* goal */
+      else if (cell->flags & ESTAR_FLAG_GOAL) { /* goal */
 	cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
       }
       else if (0 != cell->pqi) { /* on queue */
 	cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
       }
-      else if (cell->flags & FLAG_OBSTACLE) { /* obstacle */
+      else if (cell->flags & ESTAR_FLAG_OBSTACLE) { /* obstacle */
 	cairo_set_source_rgb (cr, 1.0, 0.0, 1.0);
       }
       else {
@@ -259,7 +259,7 @@ gint cb_phi_expose (GtkWidget * ww,
   //////////////////////////////////////////////////
   // if available, trace the path from start to goal
   
-  cell = grid_at (&estar.grid, STARTX, STARTY);
+  cell = estar_grid_at (&estar.grid, STARTX, STARTY);
   if (0 == cell->pqi && cell->rhs <= maxknown) {
     double px, py, dd, dmax, ds;
     px = STARTX;
@@ -270,7 +270,7 @@ gint cb_phi_expose (GtkWidget * ww,
     for (dd = 0.0; dd <= dmax; dd += ds) {
       double gx, gy, gg;
       int ix, iy;
-      if (0 == cell_calc_gradient (cell, &gx, &gy)) {
+      if (0 == estar_cell_calc_gradient (cell, &gx, &gy)) {
 	break;
       }
       gg = sqrt(pow(gx, 2.0) + pow(gy, 2.0));
@@ -295,8 +295,8 @@ gint cb_phi_expose (GtkWidget * ww,
       if (ix < 0 || ix >= DIMX || iy < 0 || iy >= DIMY) {
 	break;
       }
-      cell = grid_at (&estar.grid, ix, iy);
-      if (cell->flags & FLAG_GOAL) {
+      cell = estar_grid_at (&estar.grid, ix, iy);
+      if (cell->flags & ESTAR_FLAG_GOAL) {
 	break;
       }
 
@@ -399,7 +399,7 @@ static void change_obstacle (int cx, int cy, int dist, int add)
 	continue;
       }
       if ((0 != add && ix == cx && iy == cy)
-	  || (grid_at (&estar.grid, ix, iy)->flags & FLAG_OBSTACLE))
+	  || (estar_grid_at (&estar.grid, ix, iy)->flags & ESTAR_FLAG_OBSTACLE))
 	{
 	  ptr = md2;
 	  for (jx = x0; jx < x1; ++jx) {
@@ -460,11 +460,11 @@ gint cb_phi_click (GtkWidget * ww,
   }
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
-    cell_t * cell = grid_at(&estar.grid, mousex, mousey);
-    if (cell->flags & FLAG_GOAL) {
+    estar_cell_t * cell = estar_grid_at(&estar.grid, mousex, mousey);
+    if (cell->flags & ESTAR_FLAG_GOAL) {
       return TRUE;
     }
-    if (cell->flags & FLAG_OBSTACLE) {
+    if (cell->flags & ESTAR_FLAG_OBSTACLE) {
       drag = -1;
       change_obstacle (mousex, mousey, ODIST, 0);
     }
@@ -500,8 +500,8 @@ static gint cb_phi_motion(GtkWidget * ww,
   }
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
-    cell_t * cell = grid_at(&estar.grid, mousex, mousey);
-    if (cell->flags & FLAG_GOAL) {
+    estar_cell_t * cell = estar_grid_at(&estar.grid, mousex, mousey);
+    if (cell->flags & ESTAR_FLAG_GOAL) {
       return TRUE;
     }
     if (drag == 1) {

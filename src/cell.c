@@ -33,11 +33,11 @@
 #include <estar2/cell.h>
 
 
-int cell_calc_gradient (cell_t * cell, double * gx, double * gy)
+int estar_cell_calc_gradient (estar_cell_t * cell, double * gx, double * gy)
 {
-  cell_t ** nn;
-  cell_t * n1;
-  cell_t * n2;
+  estar_cell_t ** nn;
+  estar_cell_t * n1;
+  estar_cell_t * n2;
   int direction;
   
   n1 = NULL;

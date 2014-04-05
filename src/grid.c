@@ -38,13 +38,13 @@
 #include <stdio.h>
 
 
-void grid_init (grid_t * grid, size_t dimx, size_t dimy)
+void estar_grid_init (estar_grid_t * grid, size_t dimx, size_t dimy)
 {
   size_t ix, iy;
-  cell_t * cell;
-  cell_t ** nbor;
+  estar_cell_t * cell;
+  estar_cell_t ** nbor;
   
-  grid->cell = malloc (sizeof(cell_t) * dimx * dimy);
+  grid->cell = malloc (sizeof(estar_cell_t) * dimx * dimy);
   if (NULL == grid->cell) {
     errx (EXIT_FAILURE, __FILE__": %s: malloc", __func__);
   }
@@ -53,7 +53,7 @@ void grid_init (grid_t * grid, size_t dimx, size_t dimy)
   
   for (ix = 0; ix < dimx; ++ix) {
     for (iy = 0; iy < dimy; ++iy) {
-      cell = grid_at(grid, ix, iy);
+      cell = estar_grid_at(grid, ix, iy);
 
       cell->cost = 1.0;
       cell->phi = INFINITY;
@@ -104,7 +104,7 @@ void grid_init (grid_t * grid, size_t dimx, size_t dimy)
 }
 
 
-void grid_fini (grid_t * grid)
+void estar_grid_fini (estar_grid_t * grid)
 {
   free (grid->cell);
   grid->dimx = 0;
@@ -112,7 +112,7 @@ void grid_fini (grid_t * grid)
 }
 
 
-void grid_dump_cell (grid_t * grid, cell_t const * cell, char const * pfx)
+void estar_grid_dump_cell (estar_grid_t * grid, estar_cell_t const * cell, char const * pfx)
 {
   size_t ix, iy;
   ix = (cell - grid->cell) % grid->dimx;

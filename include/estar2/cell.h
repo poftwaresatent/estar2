@@ -35,25 +35,34 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
-  FLAG_GOAL     = 1,
-  FLAG_OBSTACLE = 2
+  ESTAR_FLAG_GOAL     = 1,
+  ESTAR_FLAG_OBSTACLE = 2
 };
 
 
-typedef struct cell_s {
-  double cost;			/* set this to 1/speed for "sensible" values */
+typedef struct estar_cell_s {
+  double cost;			 /* set this to 1/speed for "sensible" values */
   double phi;
   double rhs;
-  double key;			/* managed by pqueue */
-  size_t pqi;			/* managed by pqueue */
+  double key;			 /* managed by pqueue */
+  size_t pqi;			 /* managed by pqueue */
   int flags;
-  struct cell_s * nbor[5];	/* null-terminated array of neighbors */
-  struct cell_s * prop[9];	/* null-terminated array of pairwise propagators */
-} cell_t;
+  struct estar_cell_s * nbor[5]; /* null-terminated array of neighbors */
+  struct estar_cell_s * prop[9]; /* null-terminated array of pairwise propagators */
+} estar_cell_t;
 
 
-int cell_calc_gradient (cell_t * cell, double * gx, double * gy);
+int estar_cell_calc_gradient (estar_cell_t * cell, double * gx, double * gy);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

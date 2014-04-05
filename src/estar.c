@@ -56,11 +56,11 @@ static double interpolate (double cost, double primary, double secondary)
 }
 
 
-static void calc_rhs (cell_t * cell, double phimax)
+static void calc_rhs (estar_cell_t * cell, double phimax)
 {
-  cell_t ** prop;
-  cell_t * primary;
-  cell_t * secondary;
+  estar_cell_t ** prop;
+  estar_cell_t * primary;
+  estar_cell_t * secondary;
   double rr;
   
   cell->rhs = INFINITY;
@@ -78,7 +78,7 @@ static void calc_rhs (cell_t * cell, double phimax)
     
     // do not propagate from obstacles, queued cells, cells above the
     // wavefront, or cells at infinity
-    if (primary->flags & FLAG_OBSTACLE
+    if (primary->flags & ESTAR_FLAG_OBSTACLE
 	|| primary->pqi != 0
 	|| primary->phi > phimax
 	|| isinf(primary->phi)) {
@@ -87,7 +87,7 @@ static void calc_rhs (cell_t * cell, double phimax)
     
     // the same goes from the secondary, but if that fails at least we
     // can fall back to the non-interpolated update equation.
-    if (secondary->flags & FLAG_OBSTACLE
+    if (secondary->flags & ESTAR_FLAG_OBSTACLE
 	|| secondary->pqi != 0
 	|| secondary->phi > phimax
 	|| isinf(secondary->phi)) {
@@ -121,42 +121,42 @@ static void calc_rhs (cell_t * cell, double phimax)
 
 void estar_init (estar_t * estar, size_t dimx, size_t dimy)
 {
-  grid_init (&estar->grid, dimx, dimy);
-  pqueue_init (&estar->pq, dimx + dimy);
+  estar_grid_init (&estar->grid, dimx, dimy);
+  estar_pqueue_init (&estar->pq, dimx + dimy);
 }
 
 
 void estar_fini (estar_t * estar)
 {
-  grid_fini (&estar->grid);
-  pqueue_fini (&estar->pq);
+  estar_grid_fini (&estar->grid);
+  estar_pqueue_fini (&estar->pq);
 }
 
 
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy)
 {
-  cell_t * goal = grid_at (&estar->grid, ix, iy);
+  estar_cell_t * goal = estar_grid_at (&estar->grid, ix, iy);
   goal->rhs = 0.0;
-  goal->flags |= FLAG_GOAL;
-  goal->flags &= ~FLAG_OBSTACLE;
-  pqueue_insert_or_update (&estar->pq, goal);
+  goal->flags |= ESTAR_FLAG_GOAL;
+  goal->flags &= ~ESTAR_FLAG_OBSTACLE;
+  estar_pqueue_insert_or_update (&estar->pq, goal);
 }
 
 
 void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 {
   double cost;
-  cell_t * cell;
-  cell_t ** nbor;
+  estar_cell_t * cell;
+  estar_cell_t ** nbor;
 
-  cell = grid_at (&estar->grid, ix, iy);
+  cell = estar_grid_at (&estar->grid, ix, iy);
   
   // XXXX I'm undecided yet whether this check here makes the most
   // sense. The other option is to make sure that the caller doesn't
   // place obstacles into a goal cell. The latter somehow makes more
   // sense to me at the moment, so in gestar.c there is code to filter
   // goal cells from the obstacle setting routines.
-  ////  if (cell->flags & FLAG_GOAL) {
+  ////  if (cell->flags & ESTAR_FLAG_GOAL) {
   ////    return;
   ////  }
   
@@ -174,10 +174,10 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
   if (speed <= 0.0) {
     cell->phi = INFINITY;
     cell->rhs = INFINITY;
-    cell->flags |= FLAG_OBSTACLE;
+    cell->flags |= ESTAR_FLAG_OBSTACLE;
   }
   else {
-    cell->flags &= ~FLAG_OBSTACLE;
+    cell->flags &= ~ESTAR_FLAG_OBSTACLE;
   }
   
   estar_update (estar, cell);
@@ -187,37 +187,37 @@ void estar_set_speed (estar_t * estar, size_t ix, size_t iy, double speed)
 }
 
 
-void estar_update (estar_t * estar, cell_t * cell)
+void estar_update (estar_t * estar, estar_cell_t * cell)
 {
   /* XXXX check whether obstacles actually can end up being
      updated. Possibly due to effects of estar_set_speed? */
-  if (cell->flags & FLAG_OBSTACLE) {
-    pqueue_remove_or_ignore (&estar->pq, cell);
+  if (cell->flags & ESTAR_FLAG_OBSTACLE) {
+    estar_pqueue_remove_or_ignore (&estar->pq, cell);
     return;
   }
   
   /* Make sure that goal cells remain at their rhs, which is supposed
      to be fixed and only serve as source for propagation, never as
      sink. */
-  if ( ! (cell->flags & FLAG_GOAL)) {
-    calc_rhs (cell, pqueue_topkey (&estar->pq));
+  if ( ! (cell->flags & ESTAR_FLAG_GOAL)) {
+    calc_rhs (cell, estar_pqueue_topkey (&estar->pq));
   }
   
   if (cell->phi != cell->rhs) {
-    pqueue_insert_or_update (&estar->pq, cell);
+    estar_pqueue_insert_or_update (&estar->pq, cell);
   }
   else {
-    pqueue_remove_or_ignore (&estar->pq, cell);
+    estar_pqueue_remove_or_ignore (&estar->pq, cell);
   }
 }
 
 
 void estar_propagate (estar_t * estar)
 {
-  cell_t * cell;
-  cell_t ** nbor;
+  estar_cell_t * cell;
+  estar_cell_t ** nbor;
   
-  cell = pqueue_extract (&estar->pq);
+  cell = estar_pqueue_extract (&estar->pq);
   if (NULL == cell) {
     return;
   }
@@ -250,8 +250,8 @@ int estar_check (estar_t * estar, char const * pfx)
   
   for (ii = 0; ii < estar->grid.dimx; ++ii) {
     for (jj = 0; jj < estar->grid.dimy; ++jj) {
-      cell_t * cell;
-      cell = grid_at (&estar->grid, ii, jj);
+      estar_cell_t * cell;
+      cell = estar_grid_at (&estar->grid, ii, jj);
       
       if (cell->rhs == cell->phi) {
 	// consistent
