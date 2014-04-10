@@ -51,7 +51,7 @@ typedef struct estar_cell_s {
   double phi;
   double rhs;
   double key;			 /* managed by pqueue */
-  size_t pqi;			 /* managed by pqueue */
+  size_t pqi;			 /* managed by pqueue; pqi==0 means "not on queue" */
   int flags;
   struct estar_cell_s * nbor[5]; /* null-terminated array of neighbors */
   struct estar_cell_s * prop[9]; /* null-terminated array of pairwise propagators */

@@ -31,6 +31,7 @@
  */
 
 #include <estar2/cell.h>
+#include <math.h>
 
 
 int estar_cell_calc_gradient (estar_cell_t * cell, double * gx, double * gy)
@@ -42,7 +43,8 @@ int estar_cell_calc_gradient (estar_cell_t * cell, double * gx, double * gy)
   
   n1 = NULL;
   for (nn = cell->nbor; *nn != NULL; ++nn) {
-    if ((*nn)->rhs < cell->rhs
+    if (isfinite ((*nn)->rhs)
+	&& (*nn)->rhs < cell->rhs
 	&& (n1 == NULL || (*nn)->rhs < n1->rhs)) {
       n1 = *nn;
     }
@@ -52,31 +54,37 @@ int estar_cell_calc_gradient (estar_cell_t * cell, double * gx, double * gy)
   }
   
   direction = n1 - cell;
+  // +1 means right
+  // -1 means left
+  // +dimx means up (grid is arranged like pixels on a screen)
+  // -dimx means down
+  
   n2 = NULL;
   for (nn = cell->nbor; *nn != NULL; ++nn) {
-    if ((*nn) != n1
-	&& direction != cell - *nn
+    if (isfinite ((*nn)->rhs)
+	&& (*nn) != n1
+	&& direction != cell - *nn /* check it is not opposite n1 */
 	&& (n2 == NULL || (*nn)->rhs < n2->rhs)) {
       n2 = *nn;
     }
   }
-  
+
   if (NULL == n2) {
     if (direction == -1) {
-      *gx = n1->rhs - cell->rhs;
+      *gx = n1->rhs - cell->rhs; /* some negative value */
       *gy = 0.0;
     }
     else if (direction == 1) {
-      *gx = cell->rhs - n1->rhs;
+      *gx = cell->rhs - n1->rhs; /* some positive value */
       *gy = 0.0;
     }
     else if (direction < 0) {
       *gx = 0.0;
-      *gy = n1->rhs - cell->rhs;
+      *gy = n1->rhs - cell->rhs; /* some negative value */
     }
     else {
       *gx = 0.0;
-      *gy = cell->rhs - n1->rhs;
+      *gy = cell->rhs - n1->rhs; /* some positive value */
     }
     return 1;
   }
