@@ -57,6 +57,7 @@ add_library (estar2 SHARED
   src/grid.c
   src/pqueue.c
   )
+target_link_libraries (estar2 m)
 
 add_executable (test-pqueue src/test-pqueue.c)
 target_link_libraries (test-pqueue estar2)
