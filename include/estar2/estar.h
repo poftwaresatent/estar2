@@ -47,6 +47,11 @@ typedef struct {
 
 
 void estar_init (estar_t * estar, size_t dimx, size_t dimy);
+
+/** Clears everything except speed information. You need to
+    estar_set_goal() again after calling this function. */
+void estar_reset (estar_t * estar);
+
 void estar_fini (estar_t * estar);
 
 void estar_set_goal (estar_t * estar, size_t ix, size_t iy);

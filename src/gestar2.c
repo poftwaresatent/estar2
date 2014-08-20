@@ -54,6 +54,7 @@ static GtkWidget * w_phi;
 static gint w_phi_width, w_phi_height;
 static gint w_phi_sx, w_phi_sy, w_phi_x0, w_phi_y0;
 static int play, dbg, mousex, mousey, drag;
+static int have_goal;
 
 
 static void fini ()
@@ -66,6 +67,7 @@ static void init ()
 {
   estar_init (&estar, DIMX, DIMY);
   estar_set_goal (&estar, GOALX, GOALY);
+  have_goal = 1;
   
   play = 0;
   dbg = 0;
@@ -132,6 +134,15 @@ void cb_next (GtkWidget * ww, gpointer data)
   else {
     update ();
   }    
+}
+
+
+void cb_reset (GtkWidget * ww, gpointer data)
+{
+  printf ("RESET\n");
+  estar_reset (&estar);
+  have_goal = 0;
+  gtk_widget_queue_draw (w_phi);
 }
 
 
@@ -460,10 +471,22 @@ gint cb_phi_click (GtkWidget * ww,
   }
   
   if (mousex >= 0 && mousex < DIMX && mousey >= 0 && mousey < DIMY) {
+    
     estar_cell_t * cell = estar_grid_at(&estar.grid, mousex, mousey);
     if (cell->flags & ESTAR_FLAG_GOAL) {
       return TRUE;
     }
+    
+    if (0 == have_goal) {
+      if (cell->flags & ESTAR_FLAG_OBSTACLE) {
+	return TRUE;
+      }
+      estar_set_goal (&estar, mousex, mousey);
+      have_goal = 1;
+      gtk_widget_queue_draw (w_phi);
+      return TRUE;
+    }
+    
     if (cell->flags & ESTAR_FLAG_OBSTACLE) {
       drag = -1;
       change_obstacle (mousex, mousey, ODIST, 0);
@@ -575,6 +598,11 @@ int main (int argc, char ** argv)
   
   btn = gtk_button_new_with_label ("next");
   g_signal_connect (btn, "clicked", G_CALLBACK (cb_next), NULL);
+  gtk_box_pack_start (GTK_BOX (hbox), btn, TRUE, TRUE, 0);
+  gtk_widget_show (btn);
+  
+  btn = gtk_button_new_with_label ("reset");
+  g_signal_connect (btn, "clicked", G_CALLBACK (cb_reset), NULL);
   gtk_box_pack_start (GTK_BOX (hbox), btn, TRUE, TRUE, 0);
   gtk_widget_show (btn);
   

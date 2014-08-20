@@ -126,6 +126,24 @@ void estar_init (estar_t * estar, size_t dimx, size_t dimy)
 }
 
 
+void estar_reset (estar_t * estar)
+{
+  size_t const ncells = estar->grid.dimx * estar->grid.dimy;
+  size_t ii;
+  estar_cell_t * cell;
+  
+  for (ii = 0, cell = estar->grid.cell; ii < ncells; ++ii, ++cell) {
+    cell->phi = INFINITY;
+    cell->rhs = INFINITY;
+    cell->key = INFINITY;
+    cell->pqi = 0;
+    cell->flags &= ~ESTAR_FLAG_GOAL;
+  }
+  
+  estar->pq.len = 0;
+}
+
+
 void estar_fini (estar_t * estar)
 {
   estar_grid_fini (&estar->grid);

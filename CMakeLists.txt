@@ -5,6 +5,9 @@ if (COMMAND cmake_policy)
   if (POLICY CMP0011)
     cmake_policy (SET CMP0011 NEW)
   endif (POLICY CMP0011)
+  if (POLICY CMP0042)
+    cmake_policy (SET CMP0042 NEW)
+  endif (POLICY CMP0042)
 endif (COMMAND cmake_policy)
 
 ##################################################
